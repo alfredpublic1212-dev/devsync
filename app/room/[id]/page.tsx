@@ -13,10 +13,11 @@ import CodeEditor from "@/components/editor/CodeEditor";
 import CursorOverlay from "@/components/editor/CursorOverlay";
 import SplitHandle from "@/components/layout/SplitHandle";
 import { Loader2 } from "lucide-react";
+import ToolsPanel from "@/components/layout/Toolspanel";
 
 /* ---------- Constants (VS Code–like) ---------- */
-const SIDEBAR = { MIN: 120, MAX: 420, CLOSE: 120, DEFAULT: 200 };
-const PREVIEW = { MIN: 120, MAX: 420, CLOSE: 120, DEFAULT: 256 };
+const SIDEBAR = { MIN: 120, MAX: 420, CLOSE: 100, DEFAULT: 200 };
+const PREVIEW = { MIN: 120, MAX: 420, CLOSE: 100, DEFAULT: 256 };
 const BOTTOM = { MIN: 140, MAX: 400, CLOSE: 100, DEFAULT: 200 };
 
 export default function RoomPage() {
@@ -163,7 +164,7 @@ export default function RoomPage() {
             setPreviewOpen(true);
           }}
         />
-        {previewOpen && <PreviewPanel width={previewWidth} />}
+        {previewOpen && <ToolsPanel width={previewWidth} />}
       </div>
     </div>
   );

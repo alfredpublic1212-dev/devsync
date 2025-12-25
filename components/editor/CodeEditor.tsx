@@ -6,6 +6,7 @@ import { Socket } from 'socket.io-client';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { getLanguageFromExtension } from '@/utils/helper';
+import { useEditorContext } from '@/state/editorContext';
 
 type CodeEditorProps = {
   fileName: string;
@@ -25,6 +26,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const editorRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
   const language = getLanguageFromExtension(fileName);
+  const { setSelection, clearSelection } = useEditorContext();
+
 
   /* ---------------- Socket Sync ---------------- */
   useEffect(() => {
@@ -57,10 +60,29 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   /* ---------------- Editor Mount ---------------- */
   const handleEditorDidMount = (editor: any) => {
-    editorRef.current = editor;
-    setIsReady(true);
-    editor.focus();
-  };
+  editorRef.current = editor;
+
+  editor.onDidChangeCursorSelection((e: any) => {
+    const selection = editor.getSelection();
+    if (!selection || selection.isEmpty()) {
+      clearSelection();
+      return;
+    }
+
+    const selectedText = editor.getModel()?.getValueInRange(selection);
+    if (!selectedText) return;
+
+    setSelection(
+      fileName,
+      selectedText,
+      selection.startLineNumber,
+      selection.endLineNumber
+    );
+  });
+
+  editor.focus();
+};
+
 
   const handleChange = (value?: string) => {
     const newValue = value ?? '';
