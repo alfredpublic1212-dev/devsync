@@ -16,7 +16,7 @@ const EditorTabs = () => {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-10.5 items-center bg-neutral-900 border-b border-neutral-700 px-2 overflow-x-auto no-scrollbar">
+      <div className="flex h-10 items-center bg-neutral-900 border-b border-neutral-700 px-2 overflow-x-auto no-scrollbar">
         {tabs.map((tab) => (
           <Tab
             key={tab.id}
@@ -48,7 +48,7 @@ const Tab = ({ name, isActive, onActivate, onClose }: TabProps) => (
         role="tab"
         aria-selected={isActive}
         title={name}
-        className={`flex text-sm items-center px-3 py-1 mr-2 rounded cursor-pointer select-none transition-colors
+        className={`flex text-xs items-center px-3 py-1 mr-2 rounded cursor-pointer select-none transition-colors
           ${
             isActive
               ? 'bg-neutral-700 text-white border border-neutral-600'
@@ -64,13 +64,13 @@ const Tab = ({ name, isActive, onActivate, onClose }: TabProps) => (
             e.stopPropagation();
             onClose();
           }}
-          className="ml-2 h-5 w-5 text-neutral-400 hover:text-red-400"
+          className="ml-2 h-4 w-4 text-neutral-400 hover:text-red-400"
           aria-label={`Close ${name}`}
         >
-          <X size={14} />
+          <X size={12} />
         </Button>
-      </div>
-    </TooltipTrigger>
+        </div>  
+      </TooltipTrigger>
 
     <TooltipContent side="bottom" className="max-w-xs truncate">
       {name}

@@ -12,10 +12,11 @@ import EditorTabs from "@/components/editor/EditorTabs";
 import CodeEditor from "@/components/editor/CodeEditor";
 import CursorOverlay from "@/components/editor/CursorOverlay";
 import SplitHandle from "@/components/layout/SplitHandle";
+import { Loader2 } from "lucide-react";
 
 /* ---------- Constants (VS Code–like) ---------- */
-const SIDEBAR = { MIN: 150, MAX: 420, CLOSE: 120, DEFAULT: 200 };
-const PREVIEW = { MIN: 150, MAX: 420, CLOSE: 120, DEFAULT: 200 };
+const SIDEBAR = { MIN: 120, MAX: 420, CLOSE: 120, DEFAULT: 200 };
+const PREVIEW = { MIN: 120, MAX: 420, CLOSE: 120, DEFAULT: 256 };
 const BOTTOM = { MIN: 140, MAX: 400, CLOSE: 100, DEFAULT: 200 };
 
 export default function RoomPage() {
@@ -88,8 +89,9 @@ export default function RoomPage() {
 
   if (!roomId) {
     return (
-      <div className="h-screen flex items-center justify-center text-white">
-        Initializing…
+      <div className="h-screen flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-900">
+        <Loader2 className="h-6 w-6 text-neutral-600 dark:text-neutral-400 animate-spin mb-2" />
+        <p className="text-neutral-600 dark:text-neutral-400 text-sm font-medium">Initializing application</p>
       </div>
     );
   }

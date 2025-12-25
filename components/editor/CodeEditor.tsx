@@ -69,9 +69,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full">
       {!isReady && (
-        <div className="absolute inset-0 p-4 bg-neutral-900">
+        <div className="absolute inset-0 p-2 bg-neutral-900">
           <Skeleton className="h-full w-full bg-neutral-800" />
         </div>
       )}

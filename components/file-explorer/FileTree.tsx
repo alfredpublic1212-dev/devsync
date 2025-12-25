@@ -119,7 +119,7 @@ const FileTree: React.FC = () => {
     const children = tree.filter(n => n.parentId === parentId);
 
     return (
-      <ul className="ml-2">
+      <ul className="ml-1">
         {children.map(node => {
           const isFolder = node.type === 'folder';
           const isOpen = expanded.has(node.id);
@@ -132,10 +132,10 @@ const FileTree: React.FC = () => {
                 className={`flex items-center justify-between px-1 py-1 rounded cursor-pointer
                   ${
                     isActive
-                      ? 'bg-zinc-600 border-l-2 border-blue-500'
+                      ? 'bg-neutral-600 border-l-2 border-blue-500'
                       : isParentActive
-                      ? 'bg-zinc-700' // subtle highlight for parent folders
-                      : 'hover:bg-zinc-900'
+                      ? 'bg-neutral-700' // subtle highlight for parent folders
+                      : 'hover:bg-neutral-900'
                   }
                 `}
               >
