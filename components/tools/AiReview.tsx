@@ -1,18 +1,18 @@
-'use client';
+"use client";
 
-import { AlertTriangle, Bug, ShieldCheck, Info } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useState } from 'react';
-import { useEditorContext } from '@/state/editorContext';
+import { AlertTriangle, Bug, ShieldCheck, Info, ArrowBigRight, ArrowRight } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { useEditorContext } from "@/state/editorContext";
 
 type ReviewItem = {
   id: string;
-  severity: 'error' | 'warning' | 'info';
-  category: 'bug' | 'security' | 'performance' | 'style';
+  severity: "error" | "warning" | "info";
+  category: "bug" | "security" | "performance" | "style";
   message: string;
-  confidence: 'low' | 'medium' | 'high';
+  confidence: "low" | "medium" | "high";
 };
 
 const iconByCategory = {
@@ -23,15 +23,16 @@ const iconByCategory = {
 };
 
 export default function AIReviewPanel() {
-  const [filter, setFilter] =
-    useState<'all' | 'error' | 'warning' | 'info'>('all');
+  const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">(
+    "all"
+  );
   const [results, setResults] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const { fileName, code, range } = useEditorContext();
 
   const filtered = results.filter(
-    (i) => filter === 'all' || i.severity === filter
+    (i) => filter === "all" || i.severity === filter
   );
 
   const handleRunReview = async () => {
@@ -41,14 +42,14 @@ export default function AIReviewPanel() {
     setResults([]);
 
     try {
-      const res = await fetch('/api/ai/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/ai/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scope: code ? 'selection' : 'file',
+          scope: code ? "selection" : "file",
           file: fileName,
-          language: 'auto',
-          code: code ?? '',
+          language: "auto",
+          code: code ?? "",
           range: range ?? null,
         }),
       });
@@ -68,7 +69,7 @@ export default function AIReviewPanel() {
         );
       }
     } catch (err) {
-      console.error('AI Review failed', err);
+      console.error("AI Review failed", err);
     } finally {
       setLoading(false);
     }
@@ -78,51 +79,47 @@ export default function AIReviewPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="px-3 py-2 border-b border-neutral-800 flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-neutral-400">
-          AI Review
-        </span>
-
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={handleRunReview}
-          disabled={!canReview || loading}
-        >
-          {loading
-            ? 'Reviewing…'
-            : code
-            ? 'Review Selection'
-            : 'Review File'}
-        </Button>
-      </div>
-
       {/* Selection Context */}
       {code && range && fileName && (
-        <div className="px-3 py-2 text-xs border-b border-neutral-800 bg-neutral-900 text-neutral-400">
-          Reviewing selection in{' '}
+        <div className="flex flex-col">
+
+        <div className="px-3 py-2 text-xs bg-neutral-900 text-neutral-400">
+          Reviewing selection in{" "}
           <span className="text-neutral-200">{fileName}</span>
           <br />
           Lines {range.startLine}–{range.endLine}
         </div>
+        <div className="m-2">
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleRunReview}
+            disabled={!canReview || loading}
+          >
+            {loading ? "Reviewing…" : code ? "Review Selection" : "Review File"}
+        <ArrowRight/>
+          </Button>
+        </div>
+          </div>
       )}
 
       {/* Filters */}
       <div className="px-2 py-2 flex gap-1 border-b border-neutral-800">
-        {(['all', 'error', 'warning', 'info'] as const).map((f) => (
+        {(["all", "error", "warning", "info"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
             className={`px-2 py-1 text-xs rounded
               ${
                 filter === f
-                  ? 'bg-neutral-700 text-white'
-                  : 'text-neutral-400 hover:bg-neutral-800'
+                  ? "bg-neutral-700 text-white"
+                  : "text-neutral-400 hover:bg-neutral-800"
               }`}
           >
             {f.toUpperCase()}
           </button>
+          
         ))}
       </div>
 
@@ -135,41 +132,35 @@ export default function AIReviewPanel() {
             </div>
           )}
 
-          {fileName && filtered.map((item) => (
-            <div
-              key={item.id}
-              className="group rounded-md bg-neutral-900/50 p-3 border border-neutral-800 hover:border-neutral-700 transition"
-            >
-              <div className="flex gap-2">
-                {iconByCategory[item.category]}
+          {fileName &&
+            filtered.map((item) => (
+              <div
+                key={item.id}
+                className="group rounded-md bg-neutral-900/50 p-3 border border-neutral-800 hover:border-neutral-700 transition"
+              >
+                <div className="flex gap-2">
+                  {iconByCategory[item.category]}
 
-                <div className="flex-1">
-                  <p className="text-sm text-neutral-200">
-                    {item.message}
-                  </p>
+                  <div className="flex-1">
+                    <p className="text-sm text-neutral-200">{item.message}</p>
 
-                  <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
-                    <Badge
-                      variant="outline"
-                      className=" text-[10px]"
-                    >
-                      {item.confidence} confidence
-                    </Badge>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
+                      <Badge variant="outline" className=" text-[10px]">
+                        {item.confidence} confidence
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="mt-2 hidden group-hover:flex gap-2">
-                <Button size="sm" variant="outline">
-                  Explain
-                </Button>
-                <Button size="sm">
-                  Apply Fix
-                </Button>
+                {/* Actions */}
+                <div className="mt-2 hidden group-hover:flex gap-2">
+                  <Button size="sm" variant="outline">
+                    Explain
+                  </Button>
+                  <Button size="sm">Apply Fix</Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
           {fileName && !loading && filtered.length === 0 && (
             <div className="text-sm text-neutral-500 text-center py-6">
