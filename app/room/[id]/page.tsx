@@ -59,7 +59,7 @@ export default function RoomPage() {
             <>
               <ResizablePanel
                 defaultSize={18}
-                maxSize={30}
+                maxSize={20}
               >
                 <Sidebar />
               </ResizablePanel>
@@ -96,7 +96,7 @@ export default function RoomPage() {
                   <ResizableHandle />
                   <ResizablePanel
                     defaultSize={25}
-                    maxSize={40}
+                    maxSize={50}
                   >
                     <BottomPanel logs={[]} />
                   </ResizablePanel>
@@ -111,7 +111,7 @@ export default function RoomPage() {
               <ResizableHandle />
               <ResizablePanel
                 defaultSize={20}
-                maxSize={30}
+                maxSize={28}
               >
                 <ToolsPanel />
               </ResizablePanel>
