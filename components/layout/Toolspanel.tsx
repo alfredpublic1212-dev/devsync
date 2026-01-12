@@ -4,10 +4,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AIReviewPanel from '../tools/AiReview';
 
-export default function ToolsPanel({ width }: { width: number }) {
+export default function ToolsPanel() {
   return (
     <aside
-      style={{ width }}
       className="bg-neutral-900 border-l border-neutral-800 text-neutral-200 flex flex-col shrink-0"
     >
       <Tabs defaultValue="review" className="flex flex-col h-full">

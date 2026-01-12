@@ -60,7 +60,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 
   /* ---------------- Editor Mount ---------------- */
   const handleEditorDidMount = (editor: any) => {
-  editorRef.current = editor;
+    editorRef.current = editor;
+    setIsReady(true);
 
   editor.onDidChangeCursorSelection((e: any) => {
     const selection = editor.getSelection();

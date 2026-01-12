@@ -4,12 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import FileTree from "../file-explorer/FileTree";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type SidebarProps = { width: number };
 
-export default function Sidebar({ width }: SidebarProps) {
+export default function Sidebar() {
  return(
   <div
-    style={{ width }}
     className="bg-neutral-900 text-white border-r border-[#333] flex flex-col"
   >
     {/* <div className="px-4 py-3 border-b border-[#333]">
