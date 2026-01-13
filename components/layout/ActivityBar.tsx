@@ -29,7 +29,7 @@ const ActivityBar: React.FC<Props> = ({ onSelect, active }) => {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="h-full w-12 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-3 space-y-4">
+      <div className="h-full w-10 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center space-y-2">
         {icons.map(({ id, icon: Icon, label }) => (
           <Tooltip key={id}>
             <TooltipTrigger asChild>
@@ -37,20 +37,20 @@ const ActivityBar: React.FC<Props> = ({ onSelect, active }) => {
                 variant="ghost"
                 size="icon"
                 onClick={() => onSelect(id)}
-                className={`w-10 h-10 rounded-md transition-colors duration-200
+                className={`w-10 h-10 rounded transition-colors duration-200
                   ${
                     active === id
-                      ? 'bg-neutral-700 text-white'
+                      ? 'bg-neutral-800 border-l border-b border-neutral-400 text-white'
                       : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
                   }`}
               >
-                <Icon size={20} />
+                <Icon size={16} />
               </Button>
             </TooltipTrigger>
 
             <TooltipContent
               side="right"
-              className="bg-neutral-800 text-white text-xs px-2 py-1 rounded shadow-lg"
+              className="bg-neutral-800 text-white text-xs px-4 py-1 rounded shadow-lg"
             >
               {label}
             </TooltipContent>
