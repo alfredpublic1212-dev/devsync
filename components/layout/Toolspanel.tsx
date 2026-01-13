@@ -7,17 +7,16 @@ import AIReviewPanel from '../tools/AiReview';
 export default function ToolsPanel() {
   return (
     <aside
-      className="bg-neutral-900 border-l border-neutral-800 text-neutral-200 flex flex-col shrink-0"
+      className="min-h-screen bg-neutral-900 border-l border-neutral-800 text-neutral-200 flex flex-col shrink-0"
     >
-      <Tabs defaultValue="review" className="flex flex-col h-full">
+      <Tabs defaultValue="review" className="flex flex-col">
         {/* Top Tool Switch */}
-        <TabsList className="h-10 rounded-none bg-neutral-900 border-b border-neutral-800">
-          <TabsTrigger value="review">AI Review</TabsTrigger>
+        <TabsList className="px-2 w-full rounded-none bg-neutral-900 border-b border-neutral-800">
+          <TabsTrigger value="review" >AI Review</TabsTrigger>
           <TabsTrigger value="suggest">Suggestions</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
         </TabsList>
 
-        {/* Tool Content */}
         <TabsContent value="review" className="flex-1 m-0">
           <AIReviewPanel />
         </TabsContent>

@@ -78,51 +78,53 @@ export default function AIReviewPanel() {
   const canReview = Boolean(fileName);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Selection Context */}
-      {code && range && fileName && (
-        <div className="flex flex-col">
+    <div className="flex flex-col">
 
-        <div className="px-3 py-2 text-xs bg-neutral-900 text-neutral-400">
-          Reviewing selection in{" "}
-          <span className="text-neutral-200">{fileName}</span>
-          <br />
-          Lines {range.startLine}–{range.endLine}
-        </div>
-        <div className="m-2">
-
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleRunReview}
-            disabled={!canReview || loading}
-          >
-            {loading ? "Reviewing…" : code ? "Review Selection" : "Review File"}
-        <ArrowRight/>
-          </Button>
-        </div>
+        {/* Selection Context */}
+        {code && range && fileName && (
+          <div className="flex flex-col">
+  
+          <div className="px-3 py-2 text-xs bg-neutral-900 text-neutral-400">
+            Reviewing selection in{" "}
+            <span className="text-neutral-200">{fileName}</span>
+            <br />
+            Lines {range.startLine}–{range.endLine}
           </div>
-      )}
-
+          <div className="m-2">
+  
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleRunReview}
+              disabled={!canReview || loading}
+            >
+              {loading ? "Reviewing…" : code ? "Review Selection" : "Review File"}
+          <ArrowRight/>
+            </Button>
+          </div>
+            </div>
+        )}
       {/* Filters */}
-      <div className="px-2 py-2 flex gap-1 border-b border-neutral-800">
+      {code && range && fileName && (
+      <div className="px-2 py-2 flex gap-1 border-b border-t  border-neutral-800">
         {(["all", "error", "warning", "info"] as const).map((f) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-2 py-1 text-xs rounded
-              ${
-                filter === f
-                  ? "bg-neutral-700 text-white"
-                  : "text-neutral-400 hover:bg-neutral-800"
-              }`}
-          >
+          key={f}
+          onClick={() => setFilter(f)}
+          className={`px-2 py-1 text-xs rounded
+            ${
+              filter === f
+              ? "bg-neutral-700 text-white"
+              : "text-neutral-400 hover:bg-neutral-800"
+            }`}
+            >
             {f.toUpperCase()}
           </button>
           
         ))}
       </div>
-
+      )}
+      
       {/* Review List */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
