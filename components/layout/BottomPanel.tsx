@@ -27,14 +27,14 @@ export default function BottomPanel({ logs }: BottomPanelProps) {
             <TabsTrigger
               key={tab}
               value={tab}
-              className="px-5 py-2.5 text-sm capitalize font-medium rounded-none
+              className="px-4 py-2.5 text-sm capitalize font-medium rounded-none
                 text-gray-400 hover:text-gray-200 hover:bg-[#2C2C2C]
                 data-[state=active]:bg-[#1E1E1E]
                 data-[state=active]:text-white
                 data-[state=active]:border-t-2
                 data-[state=active]:border-gray-400
               "
-            >
+            > 
               {tab}
             </TabsTrigger>
           ))}
