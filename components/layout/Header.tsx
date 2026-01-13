@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <header className="h-12 px-4 flex items-center justify-between bg-neutral-900 border-b border-neutral-700">
+      <header className="px-4 flex items-center justify-between bg-neutral-900 border-b rounded   border-neutral-700">
         {/* Left */}
         <div className="flex items-center gap-3 min-w-0">
           <Tooltip>
@@ -78,10 +78,9 @@ const Header: React.FC<HeaderProps> = ({
                     onClick={handleCopyRoomId}
                     variant="secondary"
                     size="sm"
-                    className="text-xs bg-neutral-800 hover:bg-neutral-700 text-neutral-200"
+                    className="text-xs bg-neutral-900 hover:bg-neutral-700 text-neutral-200"
                   >
-                    <ClipboardCopy size={14} className="mr-1" />
-                    Copy ID
+                    <ClipboardCopy size={8} className="" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">Copy Room ID</TooltipContent>
