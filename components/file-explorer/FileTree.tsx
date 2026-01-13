@@ -132,9 +132,9 @@ const FileTree: React.FC = () => {
                 className={`flex items-center justify-between px-1 py-1 rounded cursor-pointer
                   ${
                     isActive
-                      ? 'bg-neutral-600 border-l-2 border-blue-500'
+                      ? 'bg-neutral-700 border-l-2 border-neutral-300'
                       : isParentActive
-                      ? 'bg-neutral-700' // subtle highlight for parent folders
+                      ? 'bg-neutral-800' // subtle highlight for parent folders
                       : 'hover:bg-neutral-900'
                   }
                 `}
