@@ -16,7 +16,7 @@ export default function Sidebar() {
       </h2>
     </div> */}
 
-    <ScrollArea className="flex-1 px-2 py-2">
+    <ScrollArea className="min-h-screen flex-1 px-2 py-2">
       <FileTree />
     </ScrollArea>
   </div>
