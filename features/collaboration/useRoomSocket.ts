@@ -3,28 +3,17 @@
 import { useEffect } from "react";
 import { getSocket } from "./socket.client";
 
-let joinedRoom: string | null = null;
-
-export function useRoomSocket(roomId: string, userId: string) {
+export function useRoomSocket(roomId: string, user: any) {
   useEffect(() => {
     const socket = getSocket();
 
-    if (joinedRoom === roomId) return;
+    if (!socket.connected) socket.connect();
 
-    if (!socket.connected) {
-      socket.connect();
-    }
-
-    socket.emit("room:join", { roomId, userId });
-    joinedRoom = roomId;
+    socket.emit("room:join", { roomId, user });
 
     return () => {
-      if (joinedRoom === roomId) {
-        socket.emit("room:leave", { roomId });
-        joinedRoom = null;
-      }
-
+      socket.emit("room:leave", { roomId });
       socket.disconnect();
     };
-  }, [roomId, userId]);
+  }, [roomId]);
 }
