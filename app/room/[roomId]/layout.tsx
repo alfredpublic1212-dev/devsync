@@ -1,0 +1,24 @@
+// app/room/[roomId]/layout.tsx
+import type { ReactNode } from "react";
+import { Toaster } from "sonner";
+
+export const dynamic = "force-dynamic";
+
+interface RoomLayoutProps {
+  readonly children: ReactNode;
+  readonly params: Promise<{ roomId: string }>;
+}
+
+export default async function RoomLayout({ children, params }: RoomLayoutProps) {
+  const { roomId } = await params;
+
+  return (
+    <div
+      className="h-screen w-screen bg-[#1e1e1e] text-neutral-200 overflow-hidden"
+      data-room-id={roomId}
+    >
+      <Toaster/>
+      {children}
+    </div>
+  );
+}
