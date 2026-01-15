@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   ResizablePanelGroup,
@@ -17,10 +17,11 @@ import Header from "@/ui/layout/Header";
 import EditorTabs from "@/features/editor/EditorTabs";
 import CodeEditor from "@/features/editor/CodeEditor";
 
-import { useRoomSocket } from "@/features/collaboration/useRoomSocket";
 import { SidebarView } from "@/ui/layout/layout.types";
-import { getFileTree } from "@/features/filesystem/file.service";
-import { useFSStore } from "@/features/filesystem/fs.store";
+
+import { useRoomSocket } from "@/features/collaboration/useRoomSocket";
+import { useEditorSocket } from "@/features/editor/editor.socket";
+import { useFilesystemSocket } from "@/features/filesystem/filesystem.socket";
 
 interface RoomShellProps {
   roomId: string;
@@ -40,28 +41,13 @@ export default function RoomShell({
   // TEMP user id (replace with auth later)
   const userId = "lala";
 
-  // Boot realtime collaboration (MUST be guarded internally)
-  if (!roomId) return null;
+  /* ---------------- Boot collaboration layers ---------------- */
+
   useRoomSocket(roomId, userId);
-  console.log("RoomShell roomId:", roomId);
+  useFilesystemSocket(roomId);
+  useEditorSocket(roomId);
 
-
-  // Hydrate filesystem ONCE per room
-  useEffect(() => {
-    let cancelled = false;
-
-    getFileTree(roomId).then((tree) => {
-      if (!cancelled) {
-        useFSStore.getState().setTree(tree);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [roomId]);
-
-
+  /* ---------------- Render ---------------- */
 
   return (
     <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
@@ -86,8 +72,12 @@ export default function RoomShell({
 
           {sidebarOpen && (
             <>
-              <ResizablePanel defaultSize={18} maxSize={25} minSize={12}>
-                <Sidebar view={sidebarView} />
+              <ResizablePanel
+                defaultSize={18}
+                maxSize={25}
+                minSize={12}
+              >
+                <Sidebar view={sidebarView} roomId={roomId} />
               </ResizablePanel>
               <ResizableHandle />
             </>
@@ -103,7 +93,7 @@ export default function RoomShell({
                 <div className="flex flex-col h-full min-h-0">
                   <EditorTabs />
                   <div className="flex-1 min-h-0">
-                    <CodeEditor />
+                    <CodeEditor roomId={roomId} />
                   </div>
                 </div>
               </ResizablePanel>
@@ -111,7 +101,11 @@ export default function RoomShell({
               {bottomOpen && (
                 <>
                   <ResizableHandle />
-                  <ResizablePanel defaultSize={25} maxSize={50} minSize={15}>
+                  <ResizablePanel
+                    defaultSize={25}
+                    maxSize={50}
+                    minSize={15}
+                  >
                     <BottomPanel roomId={roomId} />
                   </ResizablePanel>
                 </>
@@ -122,7 +116,11 @@ export default function RoomShell({
           {toolsOpen && (
             <>
               <ResizableHandle />
-              <ResizablePanel defaultSize={22} maxSize={30} minSize={15}>
+              <ResizablePanel
+                defaultSize={22}
+                maxSize={30}
+                minSize={15}
+              >
                 <ToolsPanel roomId={roomId} />
               </ResizablePanel>
             </>

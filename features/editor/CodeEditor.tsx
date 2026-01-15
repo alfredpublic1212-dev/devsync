@@ -1,31 +1,42 @@
 "use client";
 
+import Editor from "@monaco-editor/react";
 import { useEditorStore } from "./editor.store";
 import { syncEditorChange } from "./editor.sync";
 
-export default function CodeEditor() {
+interface BottomPanelProps {
+  roomId: string;
+}
+
+export default function CodeEditor({roomId} : BottomPanelProps) {
   const { files, activeFileId } = useEditorStore();
   const file = files.find((f) => f.fileId === activeFileId);
 
   if (!file) {
-    return (
-      <div className="flex items-center justify-center h-full text-neutral-500">
-        Open a file to start coding
-      </div>
-    );
+    return <div className="h-full flex items-center justify-center text-neutral-500">
+      Open a file to start coding
+    </div>;
   }
 
   return (
-    <textarea
-      className="w-full h-full bg-[#1e1e1e] text-white p-4 font-mono outline-none"
+    <Editor
+      height="100%"
+      theme="vs-dark"
+      language={file.language}
       value={file.content}
-      onChange={(e) =>
+      onChange={(value) => {
+        if (value == null) return;
         syncEditorChange(
+          roomId,
           file.fileId,
-          e.target.value,
-          file.version + 1
-        )
-      }
+          value,
+          file.version + 1,
+        );
+      }}
+      options={{
+        minimap: { enabled: false },
+        fontSize: 14,
+      }}
     />
   );
 }

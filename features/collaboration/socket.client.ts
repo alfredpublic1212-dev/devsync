@@ -14,3 +14,9 @@ export function getSocket(): Socket {
   }
   return socket;
 }
+
+export const CLIENT_ID =
+  typeof crypto !== "undefined"
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+

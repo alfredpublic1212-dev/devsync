@@ -1,0 +1,421 @@
+./fs.types.ts
+
+
+/* ===============================
+   FILE: ./fs.types.ts
+=============================== */
+
+export type FSNodeType = "root" | "folder" | "file";
+
+export interface FSNode {
+  id: string;
+  name: string;
+  type: FSNodeType;
+  parentId: string | null;
+  path: string;
+}
+
+
+export interface FileContent {
+  fileId: string;
+  content: string;
+  version: number;
+}
+./file.service.ts
+
+
+/* ===============================
+   FILE: ./file.service.ts
+=============================== */
+
+import type { FSNode, FileContent } from "./fs.types";
+
+
+export async function saveFileContent(
+  fileId: string,
+  content: string,
+  version: number
+) {
+  // Will push to S3 + DB
+}
+./fs.store.ts
+
+
+/* ===============================
+   FILE: ./fs.store.ts
+=============================== */
+
+import { create } from "zustand";
+import type { FSNode, FileContent } from "./fs.types";
+
+interface FSState {
+  tree: FSNode[];
+
+  setTree: (tree: FSNode[]) => void;
+  addNode: (node: FSNode) => void;
+  removeNode: (id: string) => void;
+  renameNode: (id: string, name: string) => void;
+}
+
+
+export const useFSStore = create<FSState>((set) => ({
+  tree: [],
+  openFiles: [],
+  activeFileId: null,
+
+  addNode: (node) =>
+  set((s) => ({ tree: [...s.tree, node] })),
+
+removeNode: (id) =>
+  set((s) => ({
+    tree: s.tree.filter((n) => n.id !== id && n.parentId !== id),
+  })),
+
+renameNode: (id, name) =>
+  set((s) => ({
+    tree: s.tree.map((n) =>
+      n.id === id ? { ...n, name } : n
+    ),
+  })),
+
+
+  setTree: (tree) => set({ tree }),
+
+}));
+./useFileSystem.ts
+
+
+/* ===============================
+   FILE: ./useFileSystem.ts
+=============================== */
+
+import { useFSStore } from "./fs.store";
+import type { FSNode } from "./fs.types";
+
+export function useFileSystem() {
+  const {
+    tree,
+    setTree,
+    addNode,
+    removeNode,
+    renameNode,
+  } = useFSStore();
+
+  return {
+    tree,
+    setTree,
+    addNode,
+    removeNode,
+    renameNode,
+  };
+}
+./FileTree.tsx
+
+
+/* ===============================
+   FILE: ./FileTree.tsx
+=============================== */
+
+"use client";
+
+import { Fragment, useMemo, useState } from "react";
+import type { FSNode } from "./fs.types";
+import { useFileSystem } from "./useFileSystem";
+import { useEditorStore } from "@/features/editor/editor.store";
+import type { EditorFile } from "@/features/editor/editor.types";
+import { getFileIcon } from "./file.icon";
+
+import {
+  Folder,
+  FolderOpen,
+  ChevronRight,
+  ChevronDown,
+} from "lucide-react";
+
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+
+import { cn } from "@/lib/utils";
+import { useFSActions } from "./fs.action";
+
+interface FileTreeProps {
+  actions: ReturnType<typeof useFSActions>;
+}
+
+/* ---------------- Helpers ---------------- */
+
+function buildTree(nodes: FSNode[]) {
+  const map = new Map<string | null, FSNode[]>();
+  for (const node of nodes) {
+    const key = node.parentId ?? null;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(node);
+  }
+  return map;
+}
+
+/* ---------------- Component ---------------- */
+
+export default function FileTree({ actions }: FileTreeProps) {
+  const { tree } = useFileSystem();
+  const { openFile, files, activeFileId } = useEditorStore();
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const treeMap = useMemo(() => buildTree(tree), [tree]);
+
+  function toggleFolder(id: string) {
+    setExpanded((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  function openFileFromTree(node: FSNode) {
+    const existing = files.find((f) => f.fileId === node.id);
+    if (existing) {
+      openFile(existing);
+      return;
+    }
+
+    const editorFile: EditorFile = {
+      fileId: node.id,
+      name: node.name,
+      content: "",
+      version: 1,
+      language: node.name.split(".").pop() ?? "txt",
+    };
+
+    openFile(editorFile);
+  }
+
+  function renderNodes(parentId: string | null, depth = 0) {
+    const nodes = treeMap.get(parentId);
+    if (!nodes) return null;
+
+    return nodes.map((node) => {
+      const isFolder = node.type === "folder" || node.type === "root";
+      const isOpen = expanded[node.id];
+      const isActive = node.id === activeFileId;
+      const FileIcon = getFileIcon(node.name);
+
+      return (
+        <Fragment key={node.id}>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 text-sm cursor-pointer select-none",
+                  "hover:bg-neutral-700",
+                  isActive && "bg-neutral-800 text-white"
+                )}
+                style={{ paddingLeft: 8 + depth * 14 }}
+                onClick={() =>
+                  isFolder ? toggleFolder(node.id) : openFileFromTree(node)
+                }
+              >
+                {isFolder ? (
+                  isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+                ) : (
+                  <span className="w-3" />
+                )}
+
+                {isFolder ? (
+                  isOpen ? <FolderOpen size={14} /> : <Folder size={14} />
+                ) : (
+                  <FileIcon size={14} />
+                )}
+
+                <span className="truncate">{node.name}</span>
+              </div>
+            </ContextMenuTrigger>
+
+            <ContextMenuContent>
+              {isFolder ? (
+                <>
+                  <ContextMenuItem onClick={() => actions.createFile(node, "new-file.ts")}>
+                    New File
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => actions.createFolder(node, "new-folder")}>
+                    New Folder
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => actions.rename(node, prompt("Rename", node.name) ?? node.name)}>
+                    Rename
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => actions.remove(node)}
+                    className="text-red-500"
+                  >
+                    Delete Folder
+                  </ContextMenuItem>
+                </>
+              ) : (
+                <>
+                  <ContextMenuItem onClick={() => openFileFromTree(node)}>
+                    Open
+                  </ContextMenuItem>
+                  <ContextMenuItem onClick={() => actions.rename(node, prompt("Rename", node.name) ?? node.name)}>
+                    Rename
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => actions.remove(node)}
+                    className="text-red-500"
+                  >
+                    Delete
+                  </ContextMenuItem>
+                </>
+              )}
+            </ContextMenuContent>
+          </ContextMenu>
+
+          {isFolder && isOpen && renderNodes(node.id, depth + 1)}
+        </Fragment>
+      );
+    });
+  }
+
+  
+
+  if (!tree.length) return null;
+
+  return <div className="py-1">{renderNodes(null)}</div>;
+}
+./file.icon.ts
+
+
+/* ===============================
+   FILE: ./file.icon.ts
+=============================== */
+
+import type { ElementType } from "react";
+import {
+  FileCode,
+  FileText,
+  FileJson,
+  FileType,
+  FileImage,
+} from "lucide-react";
+
+export function getFileIcon(name: string): ElementType {
+  const ext = name.split(".").pop()?.toLowerCase();
+
+  switch (ext) {
+    case "ts":
+    case "tsx":
+    case "js":
+    case "jsx":
+      return FileCode;
+    case "json":
+      return FileJson;
+    case "md":
+      return FileText;
+    case "png":
+    case "jpg":
+    case "jpeg":
+    case "svg":
+      return FileImage;
+    default:
+      return FileType;
+  }
+}
+./filesystem.socket.ts
+
+
+/* ===============================
+   FILE: ./filesystem.socket.ts
+=============================== */
+
+"use client";
+
+import { useEffect } from "react";
+import { getSocket } from "@/features/collaboration/socket.client";
+import { useFSStore } from "./fs.store";
+
+export function useFilesystemSocket(roomId: string) {
+  useEffect(() => {
+    const socket = getSocket();
+    const store = useFSStore.getState();
+
+    socket.on("fs:create", (node) => {
+      store.addNode(node);
+    });
+
+    socket.on("fs:rename", ({ id, name }) => {
+      store.renameNode(id, name);
+    });
+
+    socket.on("fs:delete", ({ id }) => {
+      store.removeNode(id);
+    });
+
+    return () => {
+      socket.off("fs:create");
+      socket.off("fs:rename");
+      socket.off("fs:delete");
+    };
+  }, [roomId]);
+}
+./fs.action.ts
+
+
+/* ===============================
+   FILE: ./fs.action.ts
+=============================== */
+
+import type { FSNode } from "./fs.types";
+import { useFSStore } from "./fs.store";
+import { getSocket } from "@/features/collaboration/socket.client";
+
+export function useFSActions(roomId: string) {
+  const { addNode, renameNode, removeNode } = useFSStore();
+
+  function createFile(parent: FSNode, name: string) {
+    const node: FSNode = {
+      id: crypto.randomUUID(),
+      name,
+      type: "file",
+      parentId: parent.id,
+      path: parent.path ? `${parent.path}/${name}` : name,
+    };
+
+    addNode(node);
+    getSocket().emit("fs:create", { roomId, node });
+  }
+
+  function createFolder(parent: FSNode, name: string) {
+    const node: FSNode = {
+      id: crypto.randomUUID(),
+      name,
+      type: "folder",
+      parentId: parent.id,
+      path: parent.path ? `${parent.path}/${name}` : name,
+    };
+
+    addNode(node);
+    getSocket().emit("fs:create", { roomId, node });
+  }
+
+  function rename(node: FSNode, name: string) {
+    renameNode(node.id, name);
+    getSocket().emit("fs:rename", { roomId, id: node.id, name });
+  }
+
+  function remove(node: FSNode) {
+    removeNode(node.id);
+    getSocket().emit("fs:delete", { roomId, id: node.id });
+  }
+
+  return {
+    createFile,
+    createFolder,
+    rename,
+    remove,
+  };
+}
+./file_combined.tsx
+
+
+/* ===============================
+   FILE: ./file_combined.tsx
+=============================== */
+

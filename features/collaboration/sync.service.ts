@@ -7,8 +7,17 @@ export function sendCursor(cursor: CursorPosition) {
   socket.emit("cursor:update", cursor);
 }
 
-export function sendFileUpdate(update: FileUpdate) {
+export function sendFileUpdate(update: {
+  roomId: string;
+  fileId: string;
+  content: string;
+  version: number;
+  clientId: string;
+}) {
   const socket = getSocket();
   if (!socket.connected) return;
+
   socket.emit("file:update", update);
 }
+
+

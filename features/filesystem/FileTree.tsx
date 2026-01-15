@@ -3,7 +3,6 @@
 import { Fragment, useMemo, useState } from "react";
 import type { FSNode } from "./fs.types";
 import { useFileSystem } from "./useFileSystem";
-import { getFileContent } from "./file.service";
 import { useEditorStore } from "@/features/editor/editor.store";
 import type { EditorFile } from "@/features/editor/editor.types";
 import { getFileIcon } from "./file.icon";
@@ -23,92 +22,53 @@ import {
 } from "@/components/ui/context-menu";
 
 import { cn } from "@/lib/utils";
+import { useFSActions } from "./fs.action";
 
+interface FileTreeProps {
+  actions: ReturnType<typeof useFSActions>;
+}
+
+/* ---------------- Helpers ---------------- */
 
 function buildTree(nodes: FSNode[]) {
   const map = new Map<string | null, FSNode[]>();
-
   for (const node of nodes) {
     const key = node.parentId ?? null;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(node);
   }
-
   return map;
 }
 
+/* ---------------- Component ---------------- */
 
-export default function FileTree() {
-  const {
-    tree,
-    addNode,
-    removeNode,
-    renameNode,
-  } = useFileSystem();
-
-  const openEditorFile = useEditorStore((s) => s.openFile);
-  const activeFileId = useEditorStore((s) => s.activeFileId);
+export default function FileTree({ actions }: FileTreeProps) {
+  const { tree } = useFileSystem();
+  const { openFile, files, activeFileId } = useEditorStore();
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
   const treeMap = useMemo(() => buildTree(tree), [tree]);
-
 
   function toggleFolder(id: string) {
     setExpanded((s) => ({ ...s, [id]: !s[id] }));
   }
 
-  async function openFile(node: FSNode) {
-    const file = await getFileContent(node.id);
+  function openFileFromTree(node: FSNode) {
+    const existing = files.find((f) => f.fileId === node.id);
+    if (existing) {
+      openFile(existing);
+      return;
+    }
 
     const editorFile: EditorFile = {
-      fileId: file.fileId,
+      fileId: node.id,
       name: node.name,
-      content: file.content,
-      version: file.version,
+      content: "",
+      version: 1,
       language: node.name.split(".").pop() ?? "txt",
     };
 
-    openEditorFile(editorFile);
-  }
-
-  function createFile(parent: FSNode) {
-    const name = prompt("File name", "new-file.ts");
-    if (!name) return;
-
-    addNode({
-      id: crypto.randomUUID(),
-      name,
-      type: "file",
-      parentId: parent.id,
-      path: `${parent.path}/${name}`,
-    });
-  }
-
-  function createFolder(parent: FSNode) {
-    const name = prompt("Folder name", "new-folder");
-    if (!name) return;
-
-    addNode({
-      id: crypto.randomUUID(),
-      name,
-      type: "folder",
-      parentId: parent.id,
-      path: `${parent.path}/${name}`,
-    });
-  }
-
-  function rename(node: FSNode) {
-    const name = prompt("Rename", node.name);
-    if (name && name !== node.name) {
-      renameNode(node.id, name);
-    }
-  }
-
-  function remove(node: FSNode) {
-    if (confirm(`Delete "${node.name}"?`)) {
-      removeNode(node.id);
-    }
+    openFile(editorFile);
   }
 
   function renderNodes(parentId: string | null, depth = 0) {
@@ -116,7 +76,7 @@ export default function FileTree() {
     if (!nodes) return null;
 
     return nodes.map((node) => {
-      const isFolder = node.type === "folder";
+      const isFolder = node.type === "folder" || node.type === "root";
       const isOpen = expanded[node.id];
       const isActive = node.id === activeFileId;
       const FileIcon = getFileIcon(node.name);
@@ -133,25 +93,17 @@ export default function FileTree() {
                 )}
                 style={{ paddingLeft: 8 + depth * 14 }}
                 onClick={() =>
-                  isFolder ? toggleFolder(node.id) : openFile(node)
+                  isFolder ? toggleFolder(node.id) : openFileFromTree(node)
                 }
               >
                 {isFolder ? (
-                  isOpen ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )
+                  isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
                 ) : (
                   <span className="w-3" />
                 )}
 
                 {isFolder ? (
-                  isOpen ? (
-                    <FolderOpen size={14} />
-                  ) : (
-                    <Folder size={14} />
-                  )
+                  isOpen ? <FolderOpen size={14} /> : <Folder size={14} />
                 ) : (
                   <FileIcon size={14} />
                 )}
@@ -163,17 +115,17 @@ export default function FileTree() {
             <ContextMenuContent>
               {isFolder ? (
                 <>
-                  <ContextMenuItem onClick={() => createFile(node)}>
+                  <ContextMenuItem onClick={() => actions.createFile(node, "new-file.ts")}>
                     New File
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => createFolder(node)}>
+                  <ContextMenuItem onClick={() => actions.createFolder(node, "new-folder")}>
                     New Folder
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => rename(node)}>
+                  <ContextMenuItem onClick={() => actions.rename(node, prompt("Rename", node.name) ?? node.name)}>
                     Rename
                   </ContextMenuItem>
                   <ContextMenuItem
-                    onClick={() => remove(node)}
+                    onClick={() => actions.remove(node)}
                     className="text-red-500"
                   >
                     Delete Folder
@@ -181,14 +133,14 @@ export default function FileTree() {
                 </>
               ) : (
                 <>
-                  <ContextMenuItem onClick={() => openFile(node)}>
+                  <ContextMenuItem onClick={() => openFileFromTree(node)}>
                     Open
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => rename(node)}>
+                  <ContextMenuItem onClick={() => actions.rename(node, prompt("Rename", node.name) ?? node.name)}>
                     Rename
                   </ContextMenuItem>
                   <ContextMenuItem
-                    onClick={() => remove(node)}
+                    onClick={() => actions.remove(node)}
                     className="text-red-500"
                   >
                     Delete
@@ -204,13 +156,9 @@ export default function FileTree() {
     });
   }
 
-  if (!tree.length) {
-    return (
-      <div className="px-3 py-2 text-xs text-neutral-500">
-        No files in this workspace
-      </div>
-    );
-  }
+  
+
+  if (!tree.length) return null;
 
   return <div className="py-1">{renderNodes(null)}</div>;
 }
