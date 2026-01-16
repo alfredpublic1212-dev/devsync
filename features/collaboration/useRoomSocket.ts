@@ -13,7 +13,6 @@ export function useRoomSocket(roomId: string, user: any) {
 
     return () => {
       socket.emit("room:leave", { roomId });
-      socket.disconnect();
     };
   }, [roomId]);
 }
