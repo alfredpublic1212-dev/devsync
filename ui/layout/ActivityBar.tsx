@@ -22,14 +22,14 @@ export default function ActivityBar({
   onSelect,
 }: ActivityBarProps) {
   return (
-    <div className="w-12 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center py-2 gap-1">
+    <div className="w-10 bg-neutral-900 border-r border-neutral-800 flex flex-col items-center gap-1">
       {items.map(({ id, icon: Icon }) => (
         <button
           key={id}
           onClick={() => onSelect(id)}
           className={cn(
-            "w-10 h-10 flex items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-800",
-            active === id && "bg-neutral-800 text-white"
+            "w-10 h-10 flex items-center justify-center rounded-sm text-neutral-400 cursor-pointer hover:bg-neutral-800",
+            active === id && "bg-neutral-800 border-l border-neutral-400 text-white"
           )}
         >
           <Icon className="w-5 h-5" />

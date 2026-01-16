@@ -120,7 +120,7 @@ export default function HomePage() {
               <Button
                 // onClick={() => auth.signinRedirect()}
                 onClick={handleRedirect}
-                className="w-full bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-300 dark:hover:bg-neutral-200 mt-2"
+                className="w-full bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-300 dark:hover:bg-neutral-200 cursor-pointer mt-2"
               >
                 Sign in with Cognito
               </Button>

@@ -14,9 +14,9 @@ export default function ToolsPanel({ roomId }: ToolsPanelProps) {
   const [tab, setTab] = useState<ToolTab>("preview");
 
   return (
-    <div className="h-full flex flex-col bg-neutral-900 border-l border-neutral-800 text-sm">
+    <div className="h-full flex flex-col bg-neutral-900 rounded-lg  border-neutral-800 text-sm">
       {/* Tabs */}
-      <div className="h-9 flex items-center justify-around border-b border-neutral-800">
+      <div className="h-8 flex items-center justify-around border-b border-neutral-800">
         <Tab icon={Eye} active={tab === "preview"} onClick={() => setTab("preview")} />
         <Tab icon={Bot} active={tab === "ai"} onClick={() => setTab("ai")} />
         <Tab icon={Bug} active={tab === "debug"} onClick={() => setTab("debug")} />

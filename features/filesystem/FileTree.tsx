@@ -87,19 +87,19 @@ export default function FileTree({ actions }: FileTreeProps) {
             <ContextMenuTrigger asChild>
               <div
                 className={cn(
-                  "flex items-center gap-1 px-2 py-1 text-sm cursor-pointer select-none",
+                  "flex items-center gap-1 py-1 text-sm cursor-pointer select-none",
                   "hover:bg-neutral-700",
                   isActive && "bg-neutral-800 text-white"
                 )}
-                style={{ paddingLeft: 8 + depth * 14 }}
+                style={{ paddingLeft: 2 + depth * 4 }}
                 onClick={() =>
                   isFolder ? toggleFolder(node.id) : openFileFromTree(node)
                 }
               >
                 {isFolder ? (
-                  isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+                  isOpen ? <ChevronDown size={10} /> : <ChevronRight size={10} />
                 ) : (
-                  <span className="w-3" />
+                  <span className="w-3  " />
                 )}
 
                 {isFolder ? (
@@ -124,7 +124,7 @@ export default function FileTree({ actions }: FileTreeProps) {
                   <ContextMenuItem onClick={() => actions.rename(node, prompt("Rename", node.name) ?? node.name)}>
                     Rename
                   </ContextMenuItem>
-                  <ContextMenuItem
+                  <ContextMenuItem  
                     onClick={() => actions.remove(node)}
                     className="text-red-500"
                   >

@@ -16,13 +16,13 @@ export default function BottomPanel({ roomId }: BottomPanelProps) {
   return (
     <div className="h-full flex flex-col bg-neutral-900 border-t border-neutral-800">
       {/* Tabs */}
-      <div className="h-8 flex items-center gap-2 px-2 bg-neutral-900 border-b border-neutral-800 text-xs">
+      <div className="h-8 flex items-center gap-2 bg-neutral-900 border-b border-neutral-800 text-xs">
         {(["terminal", "problems", "output"] as BottomTab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "px-3 py-1 rounded-sm",
+              "h-full px-3 py-1",
               tab === t
                 ? "bg-neutral-800 text-white"
                 : "text-neutral-400 hover:text-white"

@@ -75,7 +75,6 @@ export default function RoomShell({
               <ResizablePanel
                 defaultSize={18}
                 maxSize={25}
-                minSize={12}
               >
                 <Sidebar view={sidebarView} roomId={roomId} />
               </ResizablePanel>
@@ -104,7 +103,6 @@ export default function RoomShell({
                   <ResizablePanel
                     defaultSize={25}
                     maxSize={50}
-                    minSize={15}
                   >
                     <BottomPanel roomId={roomId} />
                   </ResizablePanel>
@@ -119,7 +117,6 @@ export default function RoomShell({
               <ResizablePanel
                 defaultSize={22}
                 maxSize={30}
-                minSize={15}
               >
                 <ToolsPanel roomId={roomId} />
               </ResizablePanel>

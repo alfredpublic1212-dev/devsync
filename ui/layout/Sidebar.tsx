@@ -32,22 +32,22 @@ export default function Sidebar({ roomId, view }: SidebarProps) {
 
   return (
     <div className="h-full flex flex-col bg-neutral-900 text-sm border-r border-neutral-800">
-      <div className="h-8 flex items-center px-3 border-b border-neutral-800 text-neutral-400">
+      <div className="h-8 flex items-center px-2 border-b border-neutral-800 text-neutral-400">
         {view.toUpperCase()}
       </div>
 
       {view === "explorer" && (
         <>
           {/* Explorer Header */}
-          <div className="flex items-center justify-between px-2 py-1 border-b border-neutral-700">
+          <div className="flex items-center justify-between px-2 py-1">
             <span className="text-xs font-semibold uppercase text-neutral-400">
               {projectName}
             </span>
 
             <div className="flex gap-1">
               <FilePlus
-                size={16}
-                className="cursor-pointer hover:text-white"
+                size={14}
+                className="cursor-pointer text-neutral-600 hover:text-white"
                 onClick={() => {
                   if (!rootNode) return;
                   const name = prompt("File name", "new-file.ts");
@@ -55,8 +55,8 @@ export default function Sidebar({ roomId, view }: SidebarProps) {
                 }}
               />
               <FolderPlus
-                size={16}
-                className="cursor-pointer hover:text-white"
+                size={14}
+                className="cursor-pointer text-neutral-600 hover:text-white"
                 onClick={() => {
                   if (!rootNode) return;
                   const name = prompt("Folder name", "new-folder");
@@ -64,8 +64,8 @@ export default function Sidebar({ roomId, view }: SidebarProps) {
                 }}
               />
               <RefreshCcw
-                size={16}
-                className="cursor-pointer hover:text-white"
+                size={14}
+                className="cursor-pointer text-neutral-600 hover:text-white"
                 onClick={() => location.reload()}
               />
             </div>

@@ -39,7 +39,7 @@ export default function Header({
   const shortRoomId = roomId?.slice(0, 6);
 
   return (
-    <div className="h-10 flex items-center justify-between px-2 bg-neutral-900 border-b border-neutral-800 text-sm">
+    <div className="h-10 flex items-center justify-between px-2 bg-neutral-900 rounded border-b border-neutral-800 text-sm">
       <div className="flex items-center gap-2">
         {/* <Button size="icon" variant="ghost" onClick={onToggleSidebar}>
           <Menu className="w-4 h-4" />
