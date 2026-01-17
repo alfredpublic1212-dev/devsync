@@ -1,15 +1,37 @@
+/* ===============================
+   FILE: features/auth/auth.service.ts
+=============================== */
+
 import { cookies } from "next/headers";
 import type { AuthUser } from "./auth.types";
 
+/**
+ * Server-only auth helper.
+ *
+ * NOTE:
+ * In this Next.js version, `cookies()` is async.
+ */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  const token = (await cookies()).get("devsync_token")?.value;
+  const cookieStore = await cookies(); 
+  const token = cookieStore.get("devsync_token")?.value;
 
-  if (!token) return null;
+  if (!token) {
+    // ───────── DEV FALLBACK ─────────
+    if (process.env.NODE_ENV !== "production") {
+      return {
+        id: "dev_user_1",
+        email: "dev@devsync.local",
+        name: "Dev User",
+      };
+    }
 
-  // Later: verify JWT against Cognito
+    return null;
+  }
+
+  // TODO: Verify JWT / Cognito token
   return {
     id: "dev_user_1",
-    email: "developer@devsync.local",
-    name: "DevSync Developer",
+    email: "dev@devsync.local",
+    name: "Dev User",
   };
 }
