@@ -1,50 +1,66 @@
-// app/room/[roomId]/page.tsx
+/* ===============================
+   FILE: app/room/[roomId]/page.tsx
+=============================== */
+
 import { notFound, redirect } from "next/navigation";
+
 import { getCurrentUser } from "@/features/auth/auth.service";
 import { getRoomById } from "@/features/rooms/room.service";
+
 import RoomProvider from "@/features/rooms/RoomProvider";
 import RoomShellClient from "@/features/rooms/RoomShellClient";
+import CollaborationProvider from "@/features/collaboration/collaboration.provider";
 
 interface RoomPageProps {
-  readonly params: Promise<{ roomId: string }>;
+  params: Promise<{
+    roomId: string;
+  }>;
 }
 
-export default async function RoomPage({ params }: RoomPageProps) {
-  const { roomId } =  await params;
+export default async function RoomPage({
+  params,
+}: RoomPageProps) {
+  /* ---------- Async params (REQUIRED) ---------- */
+  const { roomId } = await params;
 
+  /* ---------- Validate param ---------- */
+  if (!roomId || roomId.length < 6) {
+    notFound();
+  }
+
+  /* ---------- Auth ---------- */
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/");
+  }
+
+  /* ---------- Load room ---------- */
   const room = await getRoomById(roomId);
-  if (!room) notFound();
+  if (!room) {
+    notFound();
+  }
 
-  // 1. Validate ID format
-  // if (!roomId || roomId.length < 10) {
-  //   notFound();
-  // }
+  /* ---------- Access control ---------- */
+  const isMember = room.members.some(
+    (m) => m.userId === user.id
+  );
 
-  // 2. Get authenticated user
-  // const user = await getCurrentUser();
-  // if (!user) {
-  //   redirect("/");
-  // }
+  if (!isMember) {
+    redirect("/dashboard");
+  }
 
-  // 3. Load room metadata
-  // const room = await getRoomById(roomId);
-  // if (!room) {
-  //   notFound();
-  // }
-
-  // 4. Security: check access
-// if (!room.members.includes(user.id)) {
-//   redirect("/dashboard");
-// }
-
-  // 5. Render ONLY the shell
+  /* ---------- Render ---------- */
   return (
-     <RoomProvider room={room}>
-    <RoomShellClient
-      roomId={room.id}
-      // userId={user.id}
-      projectName={room.name}
-    />
-  </RoomProvider>
+    <RoomProvider room={room}>
+      <CollaborationProvider
+        roomId={room.id}
+        userId={user.id}
+      >
+        <RoomShellClient
+          roomId={room.id}
+          projectName={room.name}
+        />
+      </CollaborationProvider>
+    </RoomProvider>
   );
 }

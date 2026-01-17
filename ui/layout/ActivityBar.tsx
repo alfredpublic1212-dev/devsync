@@ -28,7 +28,7 @@ export default function ActivityBar({
           key={id}
           onClick={() => onSelect(id)}
           className={cn(
-            "w-10 h-10 flex items-center justify-center rounded-sm text-neutral-400 cursor-pointer hover:bg-neutral-800",
+            "w-10 h-10 flex items-center justify-center rounded text-neutral-400 cursor-pointer hover:bg-neutral-800",
             active === id && "bg-neutral-800 border-l border-neutral-400 text-white"
           )}
         >
