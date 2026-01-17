@@ -1,12 +1,35 @@
+/* ===============================
+   FILE: features/terminal/terminal.store.ts
+=============================== */
+
 import { create } from "zustand";
-import type { TerminalLog, TerminalSession } from "./terminal.types";
+
+export type TerminalStatus =
+  | "idle"
+  | "starting"
+  | "running"
+  | "stopped"
+  | "error";
+
+export interface TerminalSession {
+  id: string;
+  roomId: string;
+  status: TerminalStatus;
+}
+
+export interface TerminalLog {
+  id: string;
+  timestamp: number;
+  message: string;
+  type: "stdout" | "stderr" | "system";
+}
 
 interface TerminalState {
   session: TerminalSession | null;
   logs: TerminalLog[];
 
-  setSession: (s: TerminalSession) => void;
-  addLog: (l: TerminalLog) => void;
+  setSession: (session: TerminalSession | null) => void;
+  appendLog: (log: TerminalLog) => void;
   clear: () => void;
 }
 
@@ -15,6 +38,15 @@ export const useTerminalStore = create<TerminalState>((set) => ({
   logs: [],
 
   setSession: (session) => set({ session }),
-  addLog: (log) => set((s) => ({ logs: [...s.logs, log] })),
-  clear: () => set({ logs: [] }),
+
+  appendLog: (log) =>
+    set((state) => ({
+      logs: [...state.logs, log],
+    })),
+
+  clear: () =>
+    set({
+      session: null,
+      logs: [],
+    }),
 }));

@@ -2,13 +2,14 @@ export type RoomRole = "owner" | "editor" | "viewer";
 
 export interface RoomMember {
   userId: string;
+  name?: string;
   role: RoomRole;
 }
 
 export interface Room {
   id: string;
   name: string;
-  createdAt: string;
   ownerId: string;
+  createdAt: string;
   members: RoomMember[];
 }

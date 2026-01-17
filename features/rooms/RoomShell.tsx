@@ -18,10 +18,7 @@ import EditorTabs from "@/features/editor/EditorTabs";
 import CodeEditor from "@/features/editor/CodeEditor";
 
 import { SidebarView } from "@/ui/layout/layout.types";
-
-import { useRoomSocket } from "@/features/collaboration/useRoomSocket";
-import { useEditorSocket } from "@/features/editor/editor.socket";
-import { useFilesystemSocket } from "@/features/filesystem/filesystem.socket";
+import { useRoomStore } from "./room.store";
 
 interface RoomShellProps {
   roomId: string;
@@ -32,20 +29,31 @@ export default function RoomShell({
   roomId,
   projectName,
 }: RoomShellProps) {
+  const { room, isLoading, error } = useRoomStore();
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
   const [sidebarView, setSidebarView] =
     useState<SidebarView>("explorer");
 
-  // TEMP user id (replace with auth later)
-  const userId = "lala";
+  /* ---------------- Guards ---------------- */
 
-  /* ---------------- Boot collaboration layers ---------------- */
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center text-neutral-400">
+        Loading room…
+      </div>
+    );
+  }
 
-  useRoomSocket(roomId, userId);
-  useFilesystemSocket(roomId);
-  useEditorSocket(roomId);
+  if (error || !room) {
+    return (
+      <div className="h-full flex items-center justify-center text-red-400">
+        Failed to load room
+      </div>
+    );
+  }
 
   /* ---------------- Render ---------------- */
 
@@ -72,10 +80,7 @@ export default function RoomShell({
 
           {sidebarOpen && (
             <>
-              <ResizablePanel
-                defaultSize={18}
-                maxSize={25}
-              >
+              <ResizablePanel defaultSize={18} maxSize={25}>
                 <Sidebar view={sidebarView} roomId={roomId} />
               </ResizablePanel>
               <ResizableHandle />
@@ -100,10 +105,7 @@ export default function RoomShell({
               {bottomOpen && (
                 <>
                   <ResizableHandle />
-                  <ResizablePanel
-                    defaultSize={25}
-                    maxSize={50}
-                  >
+                  <ResizablePanel defaultSize={25} maxSize={50}>
                     <BottomPanel roomId={roomId} />
                   </ResizablePanel>
                 </>
@@ -114,10 +116,7 @@ export default function RoomShell({
           {toolsOpen && (
             <>
               <ResizableHandle />
-              <ResizablePanel
-                defaultSize={22}
-                maxSize={30}
-              >
+              <ResizablePanel defaultSize={22} maxSize={30}>
                 <ToolsPanel roomId={roomId} />
               </ResizablePanel>
             </>
