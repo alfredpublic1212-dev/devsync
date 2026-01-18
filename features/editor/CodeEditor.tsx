@@ -1,79 +1,100 @@
-/* ===============================
-   FILE: features/editor/CodeEditor.tsx
-=============================== */
-
 "use client";
 
 import Editor from "@monaco-editor/react";
 import { useEffect, useRef } from "react";
-import type * as monaco from "monaco-editor";
+import * as Y from "yjs";
+import { Awareness } from "y-protocols/awareness";
+import * as monaco from "monaco-editor";
+
+import { getYDoc } from "@/features/collaboration/editor/yjs";
+import { bindMonacoToYText } from "@/features/collaboration/editor/monaco-yjs";
+import { bindYjsToSocket } from "@/features/collaboration/editor/yjs-transport";
+import { setupAwareness } from "@/features/collaboration/editor/yjs-awareness";
+import { bindAwarenessToMonaco } from "@/features/collaboration/editor/monaco-awareness";
+import { renderRemoteCursors } from "@/features/collaboration/editor/render-cursors";
 
 import { useEditorStore } from "@/features/collaboration/editor/editor.store";
-import { sendEditorUpdate } from "@/features/collaboration/editor/editor.sync";
+import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
 
-export default function CodeEditor({ roomId }: { roomId: string }) {
+interface CodeEditorProps {
+  roomId: string;
+}
+
+export default function CodeEditor({ roomId }: CodeEditorProps) {
   const activeFileId = useEditorStore((s) => s.activeFileId);
   const openFiles = useEditorStore((s) => s.openFiles);
-  const contents = useEditorStore((s) => s.contents);
+  const users = usePresenceStore((s) => s.users);
 
-  const file = activeFileId
-    ? openFiles[activeFileId]
-    : null;
-
-  const content = file
-    ? contents[file.fileId]?.content ?? ""
-    : "";
-
-  const revision = file
-    ? contents[file.fileId]?.revision ?? 0
-    : 0;
+  const file = activeFileId ? openFiles[activeFileId] : null;
+  const currentUser =
+    Object.values(users).find((u) => u.online) ?? null;
 
   const editorRef =
     useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const modelRef =
-    useRef<monaco.editor.ITextModel | null>(null);
 
-  /* ---------- Sync Monaco model on file switch ---------- */
+  const modelsRef = useRef<Map<string, monaco.editor.ITextModel>>(
+    new Map()
+  );
 
   useEffect(() => {
-    if (!file || !editorRef.current) return;
+    if (!file || !editorRef.current || !currentUser) return;
 
     const editor = editorRef.current;
 
-    const model =
-      modelRef.current ??
-      monaco.editor.createModel(
-        content,
+    /* ---------- MODEL (PER FILE) ---------- */
+    let model = modelsRef.current.get(file.fileId);
+
+    if (!model) {
+      model = monaco.editor.createModel(
+        "",
         file.language
       );
-
-    if (modelRef.current !== model) {
-      modelRef.current = model;
-      editor.setModel(model);
+      modelsRef.current.set(file.fileId, model);
     }
 
-    if (model.getValue() !== content) {
-      model.setValue(content);
-    }
+    editor.setModel(model);
 
-    return () => {
-      // do NOT dispose model here (tab switching)
-    };
-  }, [file?.fileId]);
+    /* ---------- Yjs DOC ---------- */
+    const doc = getYDoc(roomId, file.fileId);
+    const ytext = doc.getText("content");
 
-  /* ---------- Push changes to server (debounced by Monaco) ---------- */
+    const unbindText = bindMonacoToYText(model, ytext);
 
-  function handleChange(value?: string) {
-    if (!file || value === undefined) return;
-
-    sendEditorUpdate(
+    /* ---------- Yjs TRANSPORT ---------- */
+    const unbindTransport = bindYjsToSocket(
+      doc,
       roomId,
-      file.fileId,
-      value
+      file.fileId
     );
-  }
 
-  /* ---------- Empty state ---------- */
+    /* ---------- AWARENESS ---------- */
+    const awareness = new Awareness(doc);
+
+    awareness.setLocalState({
+      user: {
+        userId: currentUser.userId,
+        name: currentUser.name,
+        color: currentUser.color,
+      },
+      cursor: null,
+    });
+
+    setupAwareness(awareness, roomId, file.fileId);
+    bindAwarenessToMonaco(editor, awareness);
+
+    const render = () =>
+      renderRemoteCursors(editor, awareness);
+
+    awareness.on("change", render);
+
+    /* ---------- CLEANUP ---------- */
+    return () => {
+      awareness.off("change", render);
+      awareness.destroy();
+      unbindTransport();
+      unbindText();
+    };
+  }, [roomId, file?.fileId]);
 
   if (!file) {
     return (
@@ -83,24 +104,16 @@ export default function CodeEditor({ roomId }: { roomId: string }) {
     );
   }
 
-  /* ---------- Render editor ---------- */
-
   return (
     <Editor
       height="100%"
       theme="vs-dark"
-      language={file.language}
-      value={content}
       onMount={(editor) => {
         editorRef.current = editor;
       }}
-      onChange={handleChange}
       options={{
         minimap: { enabled: false },
-        fontSize: 14,
         automaticLayout: true,
-        scrollBeyondLastLine: false,
-        cursorSmoothCaretAnimation: "on",
       }}
     />
   );
