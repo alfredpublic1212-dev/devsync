@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/presence/presence.store.ts
-=============================== */
-
 import { create } from "zustand";
 import type { PresenceUser } from "./presence.types";
 
@@ -20,9 +16,16 @@ export const usePresenceStore = create<PresenceState>((set) => ({
   setSnapshot: (users) =>
     set(() => {
       const map: Record<string, PresenceUser> = {};
+      const now = Date.now();
+
       for (const u of users) {
-        map[u.userId] = u;
+        map[u.userId] = {
+          ...u,
+          online: true,
+          lastSeen: u.lastSeen ?? now,
+        };
       }
+
       return { users: map };
     }),
 

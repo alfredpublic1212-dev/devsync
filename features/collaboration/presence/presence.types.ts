@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/presence/presence.types.ts
-=============================== */
-
 export interface PresenceUser {
   userId: string;
   name: string;
@@ -13,4 +9,10 @@ export interface PresenceUser {
 export interface PresenceSnapshot {
   roomId: string;
   users: PresenceUser[];
+}
+
+export interface PresenceJoinPayload extends PresenceUser {}
+
+export interface PresenceLeavePayload {
+  userId: string;
 }

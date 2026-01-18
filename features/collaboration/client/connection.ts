@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/client/connection.ts
-=============================== */
-
 import { getSocket } from "./socket";
 import { eventBus } from "./event-bus";
 
@@ -16,53 +12,23 @@ export function connect(roomId: string, userId: string) {
 
   activeRoomId = roomId;
 
-  /* ---------- Core socket listeners ---------- */
-
   socket.on("connect", () => {
-    if (activeRoomId) {
-      socket.emit("room:join", {
-        roomId: activeRoomId,
-        userId,
-      });
-    }
+    socket.emit("room:join", { roomId, userId });
   });
 
-  socket.on("disconnect", () => {
-    // intentional: do nothing
-    // reconnect handled automatically
-  });
+  socket.on("fs:snapshot", (p) => eventBus.emit("fs:snapshot", p));
 
-  /* ---------- Forward all collaboration events ---------- */
+  socket.on("fs:create", (p) => eventBus.emit("fs:create", p));
 
-  socket.on("fs:snapshot", (payload) =>
-    eventBus.emit("fs:snapshot", payload)
-  );
+  socket.on("fs:rename", (p) => eventBus.emit("fs:rename", p));
 
-  socket.on("fs:create", (payload) =>
-    eventBus.emit("fs:create", payload)
-  );
+  socket.on("fs:delete", (p) => eventBus.emit("fs:delete", p));
 
-  socket.on("fs:rename", (payload) =>
-    eventBus.emit("fs:rename", payload)
-  );
+  socket.on("presence:update", (p) => eventBus.emit("presence:update", p));
 
-  socket.on("fs:delete", (payload) =>
-    eventBus.emit("fs:delete", payload)
-  );
+  socket.on("presence:join", (p) => eventBus.emit("presence:join", p));
 
-  socket.on("file:update", (payload) =>
-    eventBus.emit("file:update", payload)
-  );
-
-  socket.on("cursor:update", (payload) =>
-    eventBus.emit("cursor:update", payload)
-  );
-
-  socket.on("presence:update", (payload) =>
-    eventBus.emit("presence:update", payload)
-  );
-
-  /* ---------- Initial join ---------- */
+  socket.on("presence:leave", (p) => eventBus.emit("presence:leave", p));
 
   socket.emit("room:join", { roomId, userId });
   eventBus.emit("room:joined", { roomId });
@@ -76,7 +42,6 @@ export function disconnect(roomId: string) {
   }
 
   activeRoomId = null;
-
   eventBus.emit("room:left", { roomId });
   eventBus.clear();
 }

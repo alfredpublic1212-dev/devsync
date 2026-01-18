@@ -1,6 +1,8 @@
-/* ===============================
-   FILE: features/collaboration/client/event-bus.ts
-=============================== */
+import type {
+  PresenceSnapshot,
+  PresenceJoinPayload,
+  PresenceLeavePayload,
+} from "@/features/collaboration/presence/presence.types";
 
 type EventMap = {
   "room:joined": { roomId: string };
@@ -11,11 +13,12 @@ type EventMap = {
   "fs:rename": unknown;
   "fs:delete": unknown;
 
-  "file:update": unknown;
-  "cursor:update": unknown;
-
-  "presence:update": unknown;
+  "presence:update": PresenceSnapshot;
+  "presence:join": PresenceJoinPayload;
+  "presence:leave": PresenceLeavePayload;
 };
+
+
 
 type Handler<T> = (payload: T) => void;
 
@@ -31,19 +34,14 @@ class EventBus {
     }
 
     this.listeners.get(event)!.add(handler);
-
-    return () => {
-      this.listeners.get(event)!.delete(handler);
-    };
+    return () => this.listeners.get(event)!.delete(handler);
   }
 
   emit<K extends keyof EventMap>(
     event: K,
     payload: EventMap[K]
   ) {
-    this.listeners.get(event)?.forEach((handler) => {
-      handler(payload);
-    });
+    this.listeners.get(event)?.forEach((h) => h(payload));
   }
 
   clear() {

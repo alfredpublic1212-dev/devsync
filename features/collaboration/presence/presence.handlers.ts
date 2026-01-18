@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/presence/presence.handlers.ts
-=============================== */
-
 import { eventBus } from "../client/event-bus";
 import { usePresenceStore } from "./presence.store";
 import type {
@@ -33,6 +29,7 @@ function isSnapshot(p: any): p is PresenceSnapshot {
 export function registerPresenceHandlers(roomId: string) {
   const store = usePresenceStore.getState();
 
+  /* ---- Full snapshot ---- */
   const offSnapshot = eventBus.on(
     "presence:update",
     (payload) => {
@@ -44,14 +41,26 @@ export function registerPresenceHandlers(roomId: string) {
     }
   );
 
+  /* ---- User joined ---- */
   const offJoin = eventBus.on(
-    "room:joined",
-    () => {
-      // server will push fresh snapshot
+    "presence:join",
+    (payload) => {
+      if (!isPresenceUser(payload)) return;
+      store.upsertUser(payload);
     }
   );
 
+  /* ---- User left ---- */
   const offLeave = eventBus.on(
+    "presence:leave",
+    (payload) => {
+      if (!payload || typeof payload.userId !== "string") return;
+      store.markOffline(payload.userId);
+    }
+  );
+
+  /* ---- Room lifecycle ---- */
+  const offRoomLeave = eventBus.on(
     "room:left",
     () => {
       store.clear();
@@ -62,5 +71,6 @@ export function registerPresenceHandlers(roomId: string) {
     offSnapshot();
     offJoin();
     offLeave();
+    offRoomLeave();
   };
 }
