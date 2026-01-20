@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Bot, Eye, Bug, Cpu } from "lucide-react";
+import AIReviewPanel from "@/features/tools/AiReview";
 
 type ToolTab = "preview" | "ai" | "debug" | "runtime";
 
@@ -17,14 +18,19 @@ export default function ToolsPanel({ roomId }: ToolsPanelProps) {
     <div className="h-full flex flex-col bg-neutral-900 rounded-lg  border-neutral-800 text-sm">
       {/* Tabs */}
       <div className="h-8 flex items-center justify-around border-b border-neutral-800">
-        <Tab icon={Eye} active={tab === "preview"} onClick={() => setTab("preview")} />
         <Tab icon={Bot} active={tab === "ai"} onClick={() => setTab("ai")} />
+        <Tab icon={Eye} active={tab === "preview"} onClick={() => setTab("preview")} />
         <Tab icon={Bug} active={tab === "debug"} onClick={() => setTab("debug")} />
         <Tab icon={Cpu} active={tab === "runtime"} onClick={() => setTab("runtime")} />
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
+        {tab === "ai" && (
+          <div className="p-3 text-neutral-400">
+            <AIReviewPanel/>
+          </div>
+        )}
         {tab === "preview" && (
           // <iframe
           //   src={`/api/preview/${roomId}`}
@@ -36,11 +42,6 @@ export default function ToolsPanel({ roomId }: ToolsPanelProps) {
           
         )}
 
-        {tab === "ai" && (
-          <div className="p-3 text-neutral-400">
-            AI assistant coming soon…
-          </div>
-        )}
 
         {tab === "debug" && (
           <div className="p-3 text-neutral-400">

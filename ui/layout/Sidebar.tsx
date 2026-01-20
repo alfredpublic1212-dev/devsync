@@ -1,17 +1,11 @@
-/* ===============================
-   FILE: ui/layout/Sidebar.tsx
-=============================== */
+// ui/layout/Sidebar.tsx
 
 "use client";
 
 import type { SidebarView } from "./layout.types";
 import FileTree from "@/features/filesystem/FileTree";
-
 import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
-import {
-  createNode,
-} from "@/features/collaboration/filesystem/fs.action";
-
+import { createNode } from "@/features/collaboration/filesystem/fs.action";
 import { FilePlus, FolderPlus, RefreshCcw } from "lucide-react";
 
 interface SidebarProps {
@@ -19,24 +13,43 @@ interface SidebarProps {
   view: SidebarView;
 }
 
-export default function Sidebar({
-  roomId,
-  view,
-}: SidebarProps) {
-  /* ---------- Presence ---------- */
+export default function Sidebar({ roomId, view }: SidebarProps) {
   const usersMap = usePresenceStore((s) => s.users);
   const users = Object.values(usersMap);
-
   const projectName = "devsync";
+
+  const handleCreateFile = () => {
+    const name = prompt("File name", "new-file.ts");
+    if (!name) return;
+
+    createNode({
+      roomId,
+      parentId: null, // Explicitly pass null for root
+      name,
+      type: "file",
+    });
+  };
+
+  const handleCreateFolder = () => {
+    const name = prompt("Folder name", "new-folder");
+    if (!name) return;
+
+    createNode({
+      roomId,
+      parentId: null, // Explicitly pass null for root
+      name,
+      type: "folder",
+    });
+  };
 
   return (
     <div className="h-full flex flex-col bg-neutral-900 text-sm border-r border-neutral-800">
-      {/* ---------- Header ---------- */}
+      {/* Header */}
       <div className="h-8 flex items-center px-2 border-b border-neutral-800 text-neutral-400">
         {view.toUpperCase()}
       </div>
 
-      {/* ---------- Explorer ---------- */}
+      {/* Explorer */}
       {view === "explorer" && (
         <>
           <div className="flex items-center justify-between px-2 py-1">
@@ -48,39 +61,13 @@ export default function Sidebar({
               <FilePlus
                 size={14}
                 className="cursor-pointer text-neutral-600 hover:text-white"
-                onClick={() => {
-                  const name = prompt(
-                    "File name",
-                    "new-file.ts"
-                  );
-                  if (!name) return;
-
-                  createNode({
-                    roomId,
-                    parentId: null, // server resolves real root
-                    name,
-                    type: "file",
-                  });
-                }}
+                onClick={handleCreateFile}
               />
 
               <FolderPlus
                 size={14}
                 className="cursor-pointer text-neutral-600 hover:text-white"
-                onClick={() => {
-                  const name = prompt(
-                    "Folder name",
-                    "new-folder"
-                  );
-                  if (!name) return;
-
-                  createNode({
-                    roomId,
-                    parentId: null,
-                    name,
-                    type: "folder",
-                  });
-                }}
+                onClick={handleCreateFolder}
               />
 
               <RefreshCcw
@@ -97,45 +84,40 @@ export default function Sidebar({
         </>
       )}
 
-      {/* ---------- Git ---------- */}
+      {/* Git */}
       {view === "git" && (
-        <div className="p-3 text-neutral-500">
-          Git coming soon…
-        </div>
+        <div className="p-3 text-neutral-500">Git coming soon…</div>
       )}
 
-      {/* ---------- Run ---------- */}
+      {/* Run */}
       {view === "run" && (
-        <div className="p-3 text-neutral-500">
-          Run configs coming soon…
-        </div>
+        <div className="p-3 text-neutral-500">Run configs coming soon…</div>
       )}
 
-      {/* ---------- Collaboration ---------- */}
+      {/* Collaboration */}
       {view === "collab" && (
         <div className="p-2 space-y-2">
+          <div className="text-xs text-neutral-400 mb-2">
+            {users.length} user{users.length !== 1 ? "s" : ""} online
+          </div>
           {users.map((u) => (
-            <div
-              key={u.userId}
-              className="flex items-center gap-2"
-            >
+            <div key={u.userId} className="flex items-center gap-2">
               <span
-                className="w-2 h-2 rounded-full"
+                className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ backgroundColor: u.color }}
               />
-              <span className="truncate">
+              <span className="truncate text-xs">
                 {u.name}
+                {!u.online && " (offline)"}
               </span>
             </div>
           ))}
         </div>
       )}
 
-      {/* ---------- Settings ---------- */}
+      {/* Settings */}
       {view === "settings" && (
-        <div className="p-3 text-neutral-500">
-          Settings coming soon…
-        </div>
+        <div className="p-3 text-neutral-500">Settings coming soon…</div>
       )}
     </div>
   );
