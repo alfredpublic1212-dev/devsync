@@ -1,21 +1,20 @@
-/* ===============================
-   FILE: features/terminal/terminal.handlers.ts
-=============================== */
-
 import { eventBus } from "@/features/collaboration/client/event-bus";
 import { useTerminalStore } from "./terminal.store";
 import type { TerminalLog, TerminalSession } from "./terminal.store";
 
 /* ---------- Runtime validation ---------- */
+function isSession(p: unknown): p is TerminalSession {
+  if (!p || typeof p !== "object") return false;
 
-function isSession(p: any): p is TerminalSession {
+  const s = p as TerminalSession;
+
   return (
-    p &&
-    typeof p.id === "string" &&
-    typeof p.roomId === "string" &&
-    typeof p.status === "string"
+    typeof s.id === "string" &&
+    typeof s.roomId === "string" &&
+    typeof s.status === "string"
   );
 }
+
 
 function isLog(p: any): p is TerminalLog {
   return (

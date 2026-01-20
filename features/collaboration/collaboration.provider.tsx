@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/collaboration.provider.tsx
-=============================== */
-
 "use client";
 
 import { useEffect } from "react";
@@ -10,7 +6,6 @@ import { connect, disconnect } from "./client/connection";
 
 import { registerPresenceHandlers } from "./presence/presence.handlers";
 import { registerFSHandlers } from "./filesystem/fs.handlers";
-import { registerEditorHandlers } from "./editor/editor.handlers";
 
 interface CollaborationProviderProps {
   roomId: string;
@@ -38,13 +33,11 @@ export default function CollaborationProvider({
     /* ---------- Register feature handlers ---------- */
     const unregisterPresence = registerPresenceHandlers(roomId);
     const unregisterFS = registerFSHandlers(roomId);
-    const unregisterEditor = registerEditorHandlers(roomId);
 
     /* ---------- Cleanup ---------- */
     return () => {
       unregisterPresence?.();
       unregisterFS?.();
-      unregisterEditor?.();
 
       disconnect(roomId);
     };

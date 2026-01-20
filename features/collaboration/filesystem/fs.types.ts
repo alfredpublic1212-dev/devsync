@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/collaboration/filesystem/fs.types.ts
-=============================== */
-
 export type FSNodeType = "root" | "folder" | "file";
 
 export interface FSNode {

@@ -1,4 +1,4 @@
-import { getSocket } from "@/features/collaboration/socket.client";
+import { getSocket } from "../collaboration/client/socket";
 
 const socket = getSocket();
 

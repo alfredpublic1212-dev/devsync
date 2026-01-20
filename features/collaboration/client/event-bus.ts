@@ -4,19 +4,32 @@ import type {
   PresenceLeavePayload,
 } from "@/features/collaboration/presence/presence.types";
 
+import type {
+  TerminalSession,
+  TerminalLog,
+} from "@/features/terminal/terminal.store";
+
 type EventMap = {
+  /* -------- Room -------- */
   "room:joined": { roomId: string };
   "room:left": { roomId: string };
 
+  /* -------- Filesystem -------- */
   "fs:snapshot": unknown;
   "fs:create": unknown;
   "fs:rename": unknown;
   "fs:delete": unknown;
 
+  /* -------- Presence -------- */
   "presence:update": PresenceSnapshot;
   "presence:join": PresenceJoinPayload;
   "presence:leave": PresenceLeavePayload;
+
+  /* -------- Terminal -------- */
+  "terminal:session": TerminalSession;
+  "terminal:log": TerminalLog;
 };
+
 
 
 

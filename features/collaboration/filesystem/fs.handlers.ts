@@ -1,16 +1,15 @@
-/* ===============================
-   FILE: features/collaboration/filesystem/fs.handlers.ts
-=============================== */
-
 import { eventBus } from "../client/event-bus";
 import { useFSStore } from "./fs.store";
 import type { FSSnapshot, FSNode } from "./fs.types";
 
 /* ---------- Runtime validation ---------- */
 
-function isNode(n: any): n is FSNode {
+function isNode(p: unknown): p is FSNode {
+  if (!p || typeof p !== "object") return false;
+
+  const n = p as FSNode;
+
   return (
-    n &&
     typeof n.id === "string" &&
     typeof n.name === "string" &&
     typeof n.type === "string" &&
@@ -18,12 +17,20 @@ function isNode(n: any): n is FSNode {
   );
 }
 
-function isSnapshot(p: any): p is FSSnapshot {
+function isSnapshot(p: unknown): p is FSSnapshot {
+  if (!p || typeof p !== "object") return false;
+
+  const s = p as FSSnapshot;
+
   return (
-    p &&
-    typeof p.roomId === "string" &&
-    Array.isArray(p.nodes)
+    typeof s.roomId === "string" &&
+    Array.isArray(s.nodes)
   );
+}
+
+function isDeletePayload(p: unknown): p is { id: string } {
+  if (!p || typeof p !== "object") return false;
+  return typeof (p as { id?: unknown }).id === "string";
 }
 
 /* ---------- Registration ---------- */
@@ -33,36 +40,36 @@ export function registerFSHandlers(roomId: string) {
 
   const offSnapshot = eventBus.on(
     "fs:snapshot",
-    (payload) => {
+    (payload: unknown) => {
       if (!isSnapshot(payload)) return;
       if (payload.roomId !== roomId) return;
 
-      const valid = payload.nodes.filter(isNode);
-      store.setSnapshot(valid);
+      const validNodes = payload.nodes.filter(isNode);
+      store.setSnapshot(validNodes);
     }
   );
 
   const offCreate = eventBus.on(
     "fs:create",
-    (node) => {
-      if (!isNode(node)) return;
-      store.upsertNode(node);
+    (payload: unknown) => {
+      if (!isNode(payload)) return;
+      store.upsertNode(payload);
     }
   );
 
   const offRename = eventBus.on(
     "fs:rename",
-    (node) => {
-      if (!isNode(node)) return;
-      store.upsertNode(node);
+    (payload: unknown) => {
+      if (!isNode(payload)) return;
+      store.upsertNode(payload);
     }
   );
 
   const offDelete = eventBus.on(
     "fs:delete",
-    ({ id }) => {
-      if (typeof id !== "string") return;
-      store.removeNode(id);
+    (payload: unknown) => {
+      if (!isDeletePayload(payload)) return;
+      store.removeNode(payload.id);
     }
   );
 
