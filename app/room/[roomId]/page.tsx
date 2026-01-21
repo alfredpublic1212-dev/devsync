@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: app/room/[roomId]/page.tsx
-=============================== */
-
 import { notFound, redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/features/auth/auth.service";
@@ -31,7 +27,7 @@ export default async function RoomPage({
   /* ---------- Auth ---------- */
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/");
+    redirect("/dashboard");
   }
 
   /* ---------- Load room ---------- */

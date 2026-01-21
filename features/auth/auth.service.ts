@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: features/auth/auth.service.ts
-=============================== */
-
 import { cookies } from "next/headers";
 import type { AuthUser } from "./auth.types";
 

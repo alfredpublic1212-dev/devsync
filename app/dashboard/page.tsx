@@ -32,17 +32,11 @@ export default function DashboardPage() {
       ? fakeEmail
       : auth.user?.profile.email;
 
-  useEffect(() => {
-    if (!isDev && !auth.isLoading && !auth.isAuthenticated) {
-      router.push("/");
+    useEffect(() => {
+    if (!auth.isLoading && !auth.isAuthenticated) {
+      router.push("/")
     }
-  }, [auth.isAuthenticated, auth.isLoading]);
-
-  // useEffect(() => {
-  //   if (!auth.isLoading && !auth.isAuthenticated) {
-  //     router.push("/")
-  //   }
-  // }, [auth.isAuthenticated, auth.isLoading])
+  }, [auth.isAuthenticated, auth.isLoading])
 
   if (auth.isLoading) {
     return (
