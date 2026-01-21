@@ -24,13 +24,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [roomIdInput, setRoomIdInput] = useState("");
-  const isDev = process.env.NODE_ENV === "development";
-
-  const fakeEmail = "developer@devsync.local";
-  const userEmail =
-    process.env.NODE_ENV === "development" || !auth.isAuthenticated || isDev
-      ? fakeEmail
-      : auth.user?.profile.email;
+  const userEmail = auth.user?.profile.email;
 
     useEffect(() => {
     if (!auth.isLoading && !auth.isAuthenticated) {
@@ -49,7 +43,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!isDev && !auth.isAuthenticated) return null;
+  if (!auth.isAuthenticated) return null;
 
   const handleCreateRoom = () => {
     const newRoomId = uuidv4();
