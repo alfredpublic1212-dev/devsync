@@ -1,12 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useAuth } from "react-oidc-context";
-import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Toggle } from "@/components/ui/toggle";
+import { useTheme } from "next-themes";
+
 import {
   LogOut,
   Plus,
@@ -16,73 +20,79 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { Toggle } from "@/components/ui/toggle";
-import { useTheme } from "next-themes";
 
 export default function DashboardPage() {
-  const auth = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+
   const [roomIdInput, setRoomIdInput] = useState("");
-  const userEmail = auth.user?.profile.email;
 
-    useEffect(() => {
-    if (!auth.isLoading && !auth.isAuthenticated) {
-      router.push("/")
+  /* ---------- Auth Guard ---------- */
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth");
     }
-  }, [auth.isAuthenticated, auth.isLoading])
+  }, [status, router]);
 
-  if (auth.isLoading) {
+  if (status === "loading") {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-900">
-        <Loader2 className="h-6 w-6 text-neutral-600 dark:text-neutral-400 animate-spin mb-2" />
-        <p className="text-neutral-600 dark:text-neutral-400 text-sm font-medium">
+        <Loader2 className="h-6 w-6 animate-spin text-neutral-600 dark:text-neutral-400 mb-2" />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Loading dashboard
         </p>
       </div>
     );
   }
 
-  if (!auth.isAuthenticated) return null;
+  if (!session) return null;
 
-  const handleCreateRoom = () => {
-    const newRoomId = uuidv4();
-    router.push(`/room/${newRoomId}`);
-  };
+  /* ---------- Actions ---------- */
 
-  const handleJoinRoom = () => {
+  function handleCreateRoom() {
+    const roomId = uuidv4();
+    router.push(`/room/${roomId}`);
+  }
+
+  function handleJoinRoom() {
     if (roomIdInput.trim()) {
       router.push(`/room/${roomIdInput.trim()}`);
     }
-  };
+  }
+
+  /* ---------- Render ---------- */
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-900">
       {/* Header */}
       <header className="bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <LayoutDashboard className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
             <h1 className="text-lg font-medium text-neutral-800 dark:text-neutral-200">
               Workspace
             </h1>
           </div>
-          <div className="flex items-center space-x-4">
+
+          <div className="flex items-center gap-4">
             <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              {userEmail}
+              {session.user?.email}
             </span>
+
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => auth.removeUser()}
+              onClick={() => signOut({ callbackUrl: "/auth" })}
               className="text-neutral-600 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
             >
               <LogOut className="h-4 w-4 mr-1" />
               Logout
             </Button>
+
             <Toggle
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="text-neutral-600 hover:text-blue-600 dark:text-neutral-400 dark:hover:text-yellow-400"
             >
               {theme === "dark" ? (
                 <Sun className="h-4 w-4" />
@@ -94,108 +104,60 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="container mx-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Project Controls */}
           <div className="bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm">
             <div className="p-5">
               <h2 className="text-lg font-medium text-neutral-800 dark:text-neutral-200 mb-1">
-                Project Room Management
+                Project Rooms
               </h2>
               <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-                Create a new project room or join an existing one
+                Create or join a collaborative workspace
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Create Room Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      Create New Project Room
-                    </h3>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Generates unique ID
-                    </span>
-                  </div>
+                {/* Create */}
+                <div className="space-y-2">
                   <Button
                     onClick={handleCreateRoom}
-                    className="w-full bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-300 dark:hover:bg-neutral-200 cursor-pointer h-9"
+                    className="w-full h-9"
                   >
-                    <Plus className="mr-2 h-4 w-4" /> Create Project Room
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Project Room
                   </Button>
                 </div>
 
-                {/* Join Room Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      Join Existing Project Room
-                    </h3>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                      Enter room ID
-                    </span>
-                  </div>
-                  <div className="flex space-x-2">
+                {/* Join */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
                     <Input
-                      type="text"
                       placeholder="Room ID"
                       value={roomIdInput}
                       onChange={(e) => setRoomIdInput(e.target.value)}
-                      className="h-9 bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700"
                     />
                     <Button
                       onClick={handleJoinRoom}
                       disabled={!roomIdInput.trim()}
-                      className="bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-300 dark:hover:bg-neutral-200 h-9"
                     >
-                      <ArrowRightCircle className="mr-2 h-4 w-4"/>Join
+                      <ArrowRightCircle className="mr-2 h-4 w-4" />
+                      Join
                     </Button>
                   </div>
                 </div>
               </div>
             </div>
 
-            <Separator className="bg-neutral-200 dark:bg-neutral-700" />
+            <Separator />
 
-            <div className="px-5 py-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-b-lg">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Last login: {new Date().toLocaleDateString()}
-                </p>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  All rooms are end-to-end encrypted
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Rooms (Additional content to fill space professionally) */}
-          <div className="mt-6 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm">
-            <div className="p-4 border-b border-neutral-200 dark:border-neutral-700">
-              <h2 className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
-                Recent Project Rooms
-              </h2>
-            </div>
-            <div className="p-0">
-              <div className="divide-y divide-neutral-200 dark:divide-neutral-700">
-                {[1, 2, 3].map((i) => (
-                  <button
-                    key={i}
-                    onClick={() => router.push(`/project/example-${i}`)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-neutral-50 dark:hover:bg-neutral-700/50 text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                        Project Room #{i}
-                      </p>
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                        Last accessed {i} day{i !== 1 ? "s" : ""} ago
-                      </p>
-                    </div>
-                    <ArrowRightCircle className="h-4 w-4 text-neutral-400" />
-                  </button>
-                ))}
-              </div>
+            <div className="px-5 py-3 text-xs text-neutral-500 dark:text-neutral-400 flex justify-between">
+              <span>
+                Signed in as {session.user?.name}
+              </span>
+              <span>
+                Secure OAuth authentication
+              </span>
             </div>
           </div>
         </div>
