@@ -11,12 +11,12 @@ import { FilePlus, FolderPlus, RefreshCcw } from "lucide-react";
 interface SidebarProps {
   roomId: string;
   view: SidebarView;
+  projectName: string;
 }
 
-export default function Sidebar({ roomId, view }: SidebarProps) {
+export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
   const usersMap = usePresenceStore((s) => s.users);
   const users = Object.values(usersMap);
-  const projectName = "devsync";
 
   const handleCreateFile = () => {
     const name = prompt("File name", "new-file.ts");

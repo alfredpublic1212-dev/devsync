@@ -45,7 +45,7 @@ export default function Header({
           <Menu className="w-4 h-4" />
         </Button> */}
 
-        <span className="font-medium">{title}</span>
+        <span className="font-semibold">Room: {title}</span>
 
         {shortRoomId && (
           <span className="ml-2 px-2 bg-neutral-700 text-xs rounded text-neutral-300">
