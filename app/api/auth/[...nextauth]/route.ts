@@ -21,13 +21,7 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({
-      token,
-      user,
-    }: {
-      token: JWT;
-      user?: User;
-    }): Promise<JWT> {
+    async jwt({ token, user }: { token: JWT; user?: User }): Promise<JWT> {
       if (user) {
         token.userId = user.id;
       }
