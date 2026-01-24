@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRoomStore } from "./room.store";
 import type { Room } from "./room.types";
+import { useRoomStore } from "./room.client.store";
 
 interface RoomProviderProps {
   room: Room;

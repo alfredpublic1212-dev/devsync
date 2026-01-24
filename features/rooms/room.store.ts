@@ -1,60 +1,30 @@
+import { Room, RoomMember } from "./room.types";
 
-import { create } from "zustand";
-import type { Room, RoomMember, RoomRole } from "./room.types";
+const rooms = new Map<string, Room>();
 
-interface RoomState {
-  room: Room | null;
-  isLoading: boolean;
-  error: string | null;
-
-  setRoom: (room: Room) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-
-  updateMemberRole: (userId: string, role: RoomRole) => void;
-  reset: () => void;
+export function createRoom(room: Room) {
+  rooms.set(room.id, room);
+  return room;
 }
 
-export const useRoomStore = create<RoomState>((set) => ({
-  room: null,
-  isLoading: true,
-  error: null,
+export function getRoom(roomId: string) {
+  return rooms.get(roomId) ?? null;
+}
 
-  setRoom: (room) =>
-    set({
-      room,
-      isLoading: false,
-      error: null,
-    }),
+export function addMember(roomId: string, member: RoomMember) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
 
-  setLoading: (loading) => set({ isLoading: loading }),
+  const exists = room.members.some(m => m.userId === member.userId);
+  if (!exists) room.members.push(member);
 
-  setError: (error) =>
-    set({
-      error,
-      isLoading: false,
-    }),
+  return room;
+}
 
-  updateMemberRole: (userId, role) =>
-    set((state) => {
-      if (!state.room) return state;
+export function removeMember(roomId: string, userId: string) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
 
-      const members: RoomMember[] = state.room.members.map((m) =>
-        m.userId === userId ? { ...m, role } : m
-      );
-
-      return {
-        room: {
-          ...state.room,
-          members,
-        },
-      };
-    }),
-
-  reset: () =>
-    set({
-      room: null,
-      isLoading: true,
-      error: null,
-    }),
-}));
+  room.members = room.members.filter(m => m.userId !== userId);
+  return room;
+}

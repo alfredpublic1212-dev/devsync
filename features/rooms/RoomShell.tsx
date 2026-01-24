@@ -18,7 +18,7 @@ import EditorTabs from "@/features/editor/EditorTabs";
 import CodeEditor from "@/features/editor/CodeEditor";
 
 import { SidebarView } from "@/ui/layout/layout.types";
-import { useRoomStore } from "./room.store";
+import { useRoomStore } from "./room.client.store";
 
 interface RoomShellProps {
   roomId: string;
@@ -81,7 +81,7 @@ export default function RoomShell({
           {sidebarOpen && (
             <>
               <ResizablePanel defaultSize={18} maxSize={25}>
-                <Sidebar view={sidebarView} roomId={roomId} />
+                <Sidebar view={sidebarView} roomId={roomId} projectName={projectName}/>
               </ResizablePanel>
               <ResizableHandle />
             </>
