@@ -1,60 +1,51 @@
-import { notFound, redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/features/auth/auth.service";
+import { getServerAuth } from "@/features/auth/getServerAuth";
 import { getRoomById } from "@/features/rooms/room.service";
 
 import RoomProvider from "@/features/rooms/RoomProvider";
-import RoomShellClient from "@/features/rooms/RoomShellClient";
 import CollaborationProvider from "@/features/collaboration/collaboration.provider";
-
-interface RoomPageProps {
-  params: Promise<{
-    roomId: string;
-  }>;
-}
+import RoomShellClient from "@/features/rooms/RoomShellClient";
 
 export default async function RoomPage({
   params,
-}: RoomPageProps) {
-  /* ---------- Async params (REQUIRED) ---------- */
+}: {
+  params: Promise<{ roomId: string }>;
+}) {
   const { roomId } = await params;
 
-  /* ---------- Validate param ---------- */
-  if (!roomId || roomId.length < 6) {
-    notFound();
-  }
+  if (!roomId) redirect("/dashboard");
 
-  /* ---------- Auth ---------- */
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect("/dashboard");
-  }
+  const session = await getServerAuth();
+  if (!session?.user?.id) redirect("/");
 
-  /* ---------- Load room ---------- */
+  // 1️⃣ Try in-memory store
   const room = await getRoomById(roomId);
-  if (!room) {
-    notFound();
-  }
 
-  /* ---------- Access control ---------- */
-  const isMember = room.members.some(
-    (m) => m.userId === user.id
-  );
+  // 2️⃣ Fallback to signed cookie
+  const cookie = (await cookies()).get(`room:${roomId}`);
+  const cookieMeta = cookie
+    ? JSON.parse(cookie.value)
+    : null;
 
-  if (!isMember) {
-    redirect("/dashboard");
-  }
+  const safeRoom = room ?? {
+    id: roomId,
+    name: cookieMeta?.name ?? "Untitled Project",
+    ownerId: session.user.id,
+    createdAt: new Date().toISOString(),
+    members: [],
+  };
 
-  /* ---------- Render ---------- */
   return (
-    <RoomProvider room={room}>
+    <RoomProvider room={safeRoom}>
       <CollaborationProvider
-        roomId={room.id}
-        userId={user.id}
+        roomId={roomId}
+        userId={session.user.id}
       >
         <RoomShellClient
-          roomId={room.id}
-          projectName={room.name}
+          roomId={roomId}
+          projectName={safeRoom.name}
         />
       </CollaborationProvider>
     </RoomProvider>

@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const { theme, setTheme } = useTheme();
 
   const [roomIdInput, setRoomIdInput] = useState("");
+  const [projectName, setProjectName] = useState("");
 
   /* ---------- Auth Guard ---------- */
 
@@ -51,10 +52,27 @@ export default function DashboardPage() {
 
   /* ---------- Actions ---------- */
 
-  function handleCreateRoom() {
-    const roomId = uuidv4();
-    router.push(`/room/${roomId}`);
+  async function handleCreateRoom() {
+  const res = await fetch("/api/room/create", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: projectName, 
+    }),
+  });
+
+  if (!res.ok) {
+    // handle error if needed
+    return;
   }
+
+  const { roomId } = await res.json();
+
+  router.push(`/room/${roomId}`);
+}
+
 
   function handleJoinRoom() {
     if (roomIdInput.trim()) {
@@ -119,9 +137,19 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Create */}
-                <div className="space-y-2">
+                <div className="space-y-4">
+                  <h5 className="text-md font-medium text-neutral-800 dark:text-neutral-200 mb-1">
+                    Create Room:
+                  </h5>
+                  <Input
+                    placeholder="Project name"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                  />
+
                   <Button
                     onClick={handleCreateRoom}
+                    disabled={!projectName.trim()}
                     className="w-full h-9"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -130,21 +158,23 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Join */}
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Room ID"
-                      value={roomIdInput}
-                      onChange={(e) => setRoomIdInput(e.target.value)}
-                    />
-                    <Button
-                      onClick={handleJoinRoom}
-                      disabled={!roomIdInput.trim()}
-                    >
-                      <ArrowRightCircle className="mr-2 h-4 w-4" />
-                      Join
-                    </Button>
-                  </div>
+                <div className="space-y-4">
+                  <h4 className="text-md font-medium text-neutral-800 dark:text-neutral-200 mb-1">
+                    Join Room:
+                  </h4>
+                  <Input
+                    placeholder="Room ID"
+                    value={roomIdInput}
+                    onChange={(e) => setRoomIdInput(e.target.value)}
+                  />
+                  <Button
+                    onClick={handleJoinRoom}
+                    disabled={!roomIdInput.trim()}
+                    className="w-full h-9"
+                  >
+                    <ArrowRightCircle className="mr-2 h-4 w-4" />
+                    Join
+                  </Button>
                 </div>
               </div>
             </div>
@@ -152,12 +182,8 @@ export default function DashboardPage() {
             <Separator />
 
             <div className="px-5 py-3 text-xs text-neutral-500 dark:text-neutral-400 flex justify-between">
-              <span>
-                Signed in as {session.user?.name}
-              </span>
-              <span>
-                Secure OAuth authentication
-              </span>
+              <span>Signed in as {session.user?.name}</span>
+              <span>Secure OAuth authentication</span>
             </div>
           </div>
         </div>
