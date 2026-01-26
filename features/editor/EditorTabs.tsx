@@ -25,7 +25,7 @@ export default function EditorTabs() {
   };
 
   return (
-    <div className="flex border-b border-neutral-700 bg-neutral-900 overflow-x-auto">
+    <div className="h-8 flex border-b border-neutral-700 bg-neutral-900 overflow-x-auto">
       {files.map((file) => {
         const isActive = file.fileId === activeFileId;
         
