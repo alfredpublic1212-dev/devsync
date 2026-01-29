@@ -54,14 +54,18 @@ export default function DashboardPage() {
 
 
 async function handleCreateRoom() {
-  if (!session?.user?.id) return;
+  if (!projectName.trim() || !session?.user?.id) return;
 
-  const roomId = await createRoom(
-    projectName.trim(),
-    session.user.id
-  );
+  try {
+    const roomId = await createRoom(
+      projectName,
+      session.user.id
+    );
 
-  router.push(`/room/${roomId}`);
+    router.push(`/room/${roomId}`);
+  } catch (err) {
+    console.error("Room creation failed", err);
+  }
 }
 
 
