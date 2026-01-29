@@ -33,13 +33,25 @@ export const useFSStore = create<FSState>((set) => ({
   removeNode: (id) =>
     set((state) => {
       const next = { ...state.nodes };
-      delete next[id];
+      const toDelete = new Set([id]);
 
-      // defensive: remove children (server should already do this)
-      for (const node of Object.values(next)) {
-        if (node.parentId === id) {
-          delete next[node.id];
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const node of Object.values(next)) {
+          if (
+            node.parentId &&
+            toDelete.has(node.parentId) &&
+            !toDelete.has(node.id)
+          ) {
+            toDelete.add(node.id);
+            changed = true;
+          }
         }
+      }
+
+      for (const id of toDelete) {
+        delete next[id];
       }
 
       return { nodes: next };

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-
 import { connect, disconnect } from "./client/connection";
+import { eventBus } from "./client/event-bus";
 
 import { registerPresenceHandlers } from "./presence/presence.handlers";
 import { registerFSHandlers } from "./filesystem/fs.handlers";
@@ -14,12 +14,7 @@ interface CollaborationProviderProps {
 }
 
 /**
- * Authoritative collaboration lifecycle owner.
- *
- * - One socket
- * - One room
- * - One set of handlers
- * - Clean teardown
+ * Authoritative collaboration lifecycle owner
  */
 export default function CollaborationProvider({
   roomId,
@@ -27,18 +22,22 @@ export default function CollaborationProvider({
   children,
 }: CollaborationProviderProps) {
   useEffect(() => {
-    /* ---------- Connect & join room ---------- */
     connect(roomId, userId);
 
-    /* ---------- Register feature handlers ---------- */
-    const unregisterPresence = registerPresenceHandlers(roomId);
-    const unregisterFS = registerFSHandlers(roomId);
+    let unregisterPresence: (() => void) | null = null;
+    let unregisterFS: (() => void) | null = null;
 
-    /* ---------- Cleanup ---------- */
+    const offSnapshot = eventBus.on("room:snapshot", (payload) => {
+      if (payload.roomId !== roomId) return;
+
+      unregisterPresence = registerPresenceHandlers(roomId);
+      unregisterFS = registerFSHandlers(roomId);
+    });
+
     return () => {
+      offSnapshot();
       unregisterPresence?.();
       unregisterFS?.();
-
       disconnect(roomId);
     };
   }, [roomId, userId]);

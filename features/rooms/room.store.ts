@@ -1,30 +1,28 @@
-import { Room, RoomMember } from "./room.types";
+import { create } from "zustand";
+import type { Room, RoomMember } from "./room.types";
 
-const rooms = new Map<string, Room>();
 
-export function createRoom(room: Room) {
-  rooms.set(room.id, room);
-  return room;
+interface RoomState {
+room: Room | null;
+members: RoomMember[];
+isReady: boolean;
+
+
+setRoom: (room: Room) => void;
+setMembers: (members: RoomMember[]) => void;
+markReady: () => void;
+reset: () => void;
 }
 
-export function getRoom(roomId: string) {
-  return rooms.get(roomId) ?? null;
-}
 
-export function addMember(roomId: string, member: RoomMember) {
-  const room = rooms.get(roomId);
-  if (!room) return null;
+export const useRoomStore = create<RoomState>((set) => ({
+room: null,
+members: [],
+isReady: false,
 
-  const exists = room.members.some(m => m.userId === member.userId);
-  if (!exists) room.members.push(member);
 
-  return room;
-}
-
-export function removeMember(roomId: string, userId: string) {
-  const room = rooms.get(roomId);
-  if (!room) return null;
-
-  room.members = room.members.filter(m => m.userId !== userId);
-  return room;
-}
+setRoom: (room) => set({ room }),
+setMembers: (members) => set({ members }),
+markReady: () => set({ isReady: true }),
+reset: () => set({ room: null, members: [], isReady: false }),
+}));

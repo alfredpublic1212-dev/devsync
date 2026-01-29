@@ -22,6 +22,8 @@ import { useEditorStore } from "@/features/collaboration/editor/editor.store";
 import { getLanguageFromFilename } from "@/features/editor/language";
 import type { FSNode } from "@/features/collaboration/filesystem/fs.types";
 
+import { useRoomStore } from "@/features/rooms/room.store";
+
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -55,12 +57,35 @@ function buildTree(nodes: FSNode[]) {
 /* ---------------- Component ---------------- */
 
 export default function FileTree({ roomId }: { roomId: string }) {
-  /* ---------- Zustand (RAW snapshot only) ---------- */
+  /* ---------- Guards ---------- */
+  const room = useRoomStore((s) => s.room);
+  const members = useRoomStore((s) => s.members);
+
+  if (!room) {
+    return (
+      <div className="p-2 text-sm text-neutral-500">
+        Loading…
+      </div>
+    );
+  }
+
+  const currentUserId =
+    typeof window !== "undefined"
+      ? members.find((m) => m.role === "owner" || m.role === "editor")
+          ?.userId
+      : null;
+
+  const myRole =
+    members.find((m) => m.userId === currentUserId)
+      ?.role ?? "viewer";
+
+  const canEdit = myRole !== "viewer";
+
+  /* ---------- FS state ---------- */
   const nodesMap = useFSStore((s) => s.nodes);
   const openFile = useEditorStore((s) => s.openFile);
   const activeFileId = useEditorStore((s) => s.activeFileId);
 
-  /* ---------- Derived state (memoized) ---------- */
   const nodes = useMemo(
     () => Object.values(nodesMap),
     [nodesMap]
@@ -80,6 +105,8 @@ export default function FileTree({ roomId }: { roomId: string }) {
   }
 
   function handleOpenFile(node: FSNode) {
+    if (node.type !== "file") return;
+
     openFile({
       fileId: node.id,
       name: node.name,
@@ -111,13 +138,16 @@ export default function FileTree({ roomId }: { roomId: string }) {
             <ContextMenuTrigger asChild>
               <div
                 className={cn(
-                  "flex items-center gap-1 py-1 text-sm cursor-pointer select-none",
+                  "flex items-center gap-1 py-1 text-sm select-none",
                   "hover:bg-neutral-700",
                   isActive &&
                     "bg-neutral-800 text-white"
                 )}
                 style={{
                   paddingLeft: 8 + depth * 14,
+                  cursor: isFolder
+                    ? "pointer"
+                    : "default",
                 }}
                 onClick={() =>
                   isFolder
@@ -143,7 +173,7 @@ export default function FileTree({ roomId }: { roomId: string }) {
             </ContextMenuTrigger>
 
             <ContextMenuContent>
-              {isFolder && (
+              {isFolder && canEdit && (
                 <>
                   <ContextMenuItem
                     onClick={() =>
@@ -173,35 +203,45 @@ export default function FileTree({ roomId }: { roomId: string }) {
                 </>
               )}
 
-              <ContextMenuItem
-                onClick={() => {
-                  const name = prompt(
-                    "Rename",
-                    node.name
-                  );
-                  if (!name) return;
+              {canEdit && (
+                <>
+                  <ContextMenuItem
+                    onClick={() => {
+                      const name = prompt(
+                        "Rename",
+                        node.name
+                      );
+                      if (!name) return;
 
-                  renameNode({
-                    roomId,
-                    id: node.id,
-                    name,
-                  });
-                }}
-              >
-                Rename
-              </ContextMenuItem>
+                      renameNode({
+                        roomId,
+                        id: node.id,
+                        name,
+                      });
+                    }}
+                  >
+                    Rename
+                  </ContextMenuItem>
 
-              <ContextMenuItem
-                className="text-red-500"
-                onClick={() =>
-                  deleteNode({
-                    roomId,
-                    id: node.id,
-                  })
-                }
-              >
-                Delete
-              </ContextMenuItem>
+                  <ContextMenuItem
+                    className="text-red-500"
+                    onClick={() =>
+                      deleteNode({
+                        roomId,
+                        id: node.id,
+                      })
+                    }
+                  >
+                    Delete
+                  </ContextMenuItem>
+                </>
+              )}
+
+              {!canEdit && (
+                <ContextMenuItem disabled>
+                  Read-only
+                </ContextMenuItem>
+              )}
             </ContextMenuContent>
           </ContextMenu>
 
@@ -213,7 +253,6 @@ export default function FileTree({ roomId }: { roomId: string }) {
     });
   }
 
-  /* ---------- Empty state ---------- */
   if (!nodes.length) {
     return (
       <div className="p-2 text-sm text-neutral-500">
@@ -222,10 +261,5 @@ export default function FileTree({ roomId }: { roomId: string }) {
     );
   }
 
-  /* ---------- Render ---------- */
-  return (
-    <div className="py-1">
-      {renderNodes(null)}
-    </div>
-  );
+  return <div className="py-1">{renderNodes(null)}</div>;
 }

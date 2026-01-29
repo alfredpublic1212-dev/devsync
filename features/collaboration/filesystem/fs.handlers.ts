@@ -6,20 +6,20 @@ import type { FSSnapshot, FSNode } from "./fs.types";
 
 function isNode(p: unknown): p is FSNode {
   if (!p || typeof p !== "object") return false;
-
   const n = p as FSNode;
 
   return (
     typeof n.id === "string" &&
     typeof n.name === "string" &&
-    typeof n.type === "string" &&
-    typeof n.path === "string"
+    (n.type === "file" || n.type === "folder") &&
+    typeof n.path === "string" &&
+    typeof n.updatedAt === "number" &&
+    (typeof n.parentId === "string" || n.parentId === null)
   );
 }
 
 function isSnapshot(p: unknown): p is FSSnapshot {
   if (!p || typeof p !== "object") return false;
-
   const s = p as FSSnapshot;
 
   return (
@@ -29,8 +29,11 @@ function isSnapshot(p: unknown): p is FSSnapshot {
 }
 
 function isDeletePayload(p: unknown): p is { id: string } {
-  if (!p || typeof p !== "object") return false;
-  return typeof (p as { id?: unknown }).id === "string";
+  return (
+    !!p &&
+    typeof p === "object" &&
+    typeof (p as any).id === "string"
+  );
 }
 
 /* ---------- Registration ---------- */
@@ -44,8 +47,8 @@ export function registerFSHandlers(roomId: string) {
       if (!isSnapshot(payload)) return;
       if (payload.roomId !== roomId) return;
 
-      const validNodes = payload.nodes.filter(isNode);
-      store.setSnapshot(validNodes);
+      const valid = payload.nodes.filter(isNode);
+      store.setSnapshot(valid);
     }
   );
 
@@ -73,12 +76,9 @@ export function registerFSHandlers(roomId: string) {
     }
   );
 
-  const offLeave = eventBus.on(
-    "room:left",
-    () => {
-      store.clear();
-    }
-  );
+  const offLeave = eventBus.on("room:left", () => {
+    store.clear();
+  });
 
   return () => {
     offSnapshot();

@@ -1,15 +1,17 @@
-export type RoomRole = "owner" | "editor" | "viewer";
-
-export interface RoomMember {
-  userId: string;
-  name?: string;
-  role: RoomRole;
+export interface Room {
+id: string;
+name: string;
+ownerId: string;
 }
 
-export interface Room {
-  id: string;
-  name: string;
-  ownerId: string;
-  members: RoomMember[];
-  createdAt: string;
+
+export interface RoomMember {
+userId: string;
+role: "owner" | "editor" | "viewer";
+}
+
+
+export interface RoomSnapshot {
+roomId: string;
+tree: any[]; // FSNode[] comes from filesystem feature
 }

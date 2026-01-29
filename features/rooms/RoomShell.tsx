@@ -18,18 +18,17 @@ import EditorTabs from "@/features/editor/EditorTabs";
 import CodeEditor from "@/features/editor/CodeEditor";
 
 import { SidebarView } from "@/ui/layout/layout.types";
-import { useRoomStore } from "./room.client.store";
+import { useRoomStore } from "@/features/rooms/room.store";
+import { Loader2 } from "lucide-react";
 
-interface RoomShellProps {
+interface RoomShellClientProps {
   roomId: string;
-  projectName: string;
 }
 
-export default function RoomShell({
+export default function RoomShellClient({
   roomId,
-  projectName,
-}: RoomShellProps) {
-  const { room, isLoading, error } = useRoomStore();
+}: RoomShellClientProps) {
+  const room = useRoomStore((s) => s.room);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
@@ -37,30 +36,22 @@ export default function RoomShell({
   const [sidebarView, setSidebarView] =
     useState<SidebarView>("explorer");
 
-  /* ---------------- Guards ---------------- */
-
-  if (isLoading) {
+  // RoomGuard guarantees this, but keep defensive check
+  if (!room) {
     return (
-      <div className="h-full flex items-center justify-center text-neutral-400">
-        Loading room…
+      <div className="h-screen flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-900">
+        <Loader2 className="h-6 w-6 animate-spin text-neutral-600 dark:text-neutral-400 mb-2" />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Loading room…
+        </p>
       </div>
     );
   }
-
-  if (error || !room) {
-    return (
-      <div className="h-full flex items-center justify-center text-red-400">
-        Failed to load room
-      </div>
-    );
-  }
-
-  /* ---------------- Render ---------------- */
 
   return (
     <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
       <Header
-        title={projectName}
+        title={room.name}
         roomId={roomId}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onToggleBottomPanel={() => setBottomOpen((v) => !v)}
@@ -81,7 +72,10 @@ export default function RoomShell({
           {sidebarOpen && (
             <>
               <ResizablePanel defaultSize={18} maxSize={25}>
-                <Sidebar view={sidebarView} roomId={roomId} projectName={projectName}/>
+                <Sidebar
+                  view={sidebarView}
+                  roomId={roomId}
+                />
               </ResizablePanel>
               <ResizableHandle />
             </>

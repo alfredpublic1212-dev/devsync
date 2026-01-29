@@ -1,11 +1,11 @@
-export type FSNodeType = "root" | "folder" | "file";
+export type FSNodeType = "file" | "folder";
 
 export interface FSNode {
-  id: string;            // assigned by server
+  id: string;
   name: string;
   type: FSNodeType;
   parentId: string | null;
-  path: string;          // server-computed, canonical
+  path: string;
   updatedAt: number;
 }
 

@@ -33,7 +33,7 @@ export default function TerminalPanel({
   }
 
   return (
-    <div className="h-full flex flex-col bg-black text-green-400 font-mono text-sm">
+    <div className="h-full bg-black text-green-400 font-mono text-sm">
       {/* ---------- Header ---------- */}
       <div className="flex items-center justify-between px-2 py-1 bg-neutral-900 text-white">
         <span>Terminal</span>
@@ -55,6 +55,20 @@ export default function TerminalPanel({
         )}
       </div>
 
+
+      {/* ---------- Input ---------- */}
+      <input
+        className="bg-black text-white outline-none"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            send();
+          }
+        }}
+        placeholder="Enter command…"
+      />
+      
       {/* ---------- Output ---------- */}
       <div className="flex-1 overflow-auto p-2 space-y-1">
         {logs.map((log) => (
@@ -71,19 +85,6 @@ export default function TerminalPanel({
           </div>
         ))}
       </div>
-
-      {/* ---------- Input ---------- */}
-      <input
-        className="bg-black border-t border-neutral-700 p-1 text-white outline-none"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            send();
-          }
-        }}
-        placeholder="Enter command…"
-      />
     </div>
   );
 }

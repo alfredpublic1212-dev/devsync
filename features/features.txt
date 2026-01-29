@@ -1,0 +1,2821 @@
+./rooms/RoomShell.tsx
+
+
+/* ===============================
+   FILE: ./rooms/RoomShell.tsx
+=============================== */
+
+"use client";
+
+import { useState } from "react";
+
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
+
+import ActivityBar from "@/ui/layout/ActivityBar";
+import Sidebar from "@/ui/layout/Sidebar";
+import BottomPanel from "@/ui/layout/BottomPanel";
+import ToolsPanel from "@/ui/layout/ToolsPanel";
+import Header from "@/ui/layout/Header";
+
+import EditorTabs from "@/features/editor/EditorTabs";
+import CodeEditor from "@/features/editor/CodeEditor";
+
+import { SidebarView } from "@/ui/layout/layout.types";
+import { useRoomStore } from "./room.client.store";
+
+interface RoomShellProps {
+  roomId: string;
+  projectName: string;
+}
+
+export default function RoomShell({
+  roomId,
+  projectName,
+}: RoomShellProps) {
+  const { room, isLoading, error } = useRoomStore();
+
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [bottomOpen, setBottomOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(true);
+  const [sidebarView, setSidebarView] =
+    useState<SidebarView>("explorer");
+
+  /* ---------------- Guards ---------------- */
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center text-neutral-400">
+        Loading room…
+      </div>
+    );
+  }
+
+  if (error || !room) {
+    return (
+      <div className="h-full flex items-center justify-center text-red-400">
+        Failed to load room
+      </div>
+    );
+  }
+
+  /* ---------------- Render ---------------- */
+
+  return (
+    <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
+      <Header
+        title={projectName}
+        roomId={roomId}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        onToggleBottomPanel={() => setBottomOpen((v) => !v)}
+        onToggleTools={() => setToolsOpen((v) => !v)}
+      />
+
+      <div className="flex flex-1 overflow-hidden">
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="flex-1"
+          autoSaveId={`room-${roomId}-horizontal`}
+        >
+          <ActivityBar
+            active={sidebarView}
+            onSelect={setSidebarView}
+          />
+
+          {sidebarOpen && (
+            <>
+              <ResizablePanel defaultSize={18} maxSize={25}>
+                <Sidebar view={sidebarView} roomId={roomId} projectName={projectName}/>
+              </ResizablePanel>
+              <ResizableHandle />
+            </>
+          )}
+
+          <ResizablePanel minSize={40}>
+            <ResizablePanelGroup
+              direction="vertical"
+              className="h-full"
+              autoSaveId={`room-${roomId}-vertical`}
+            >
+              <ResizablePanel minSize={40}>
+                <div className="flex flex-col h-full min-h-0">
+                  <EditorTabs />
+                  <div className="flex-1 min-h-0">
+                    <CodeEditor roomId={roomId} />
+                  </div>
+                </div>
+              </ResizablePanel>
+
+              {bottomOpen && (
+                <>
+                  <ResizableHandle />
+                  <ResizablePanel defaultSize={25} maxSize={50}>
+                    <BottomPanel roomId={roomId} />
+                  </ResizablePanel>
+                </>
+              )}
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          {toolsOpen && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={22} maxSize={30}>
+                <ToolsPanel roomId={roomId} />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
+      </div>
+    </div>
+  );
+}
+./rooms/room.types.ts
+
+
+/* ===============================
+   FILE: ./rooms/room.types.ts
+=============================== */
+
+export type RoomRole = "owner" | "editor" | "viewer";
+
+export interface RoomMember {
+  userId: string;
+  name?: string;
+  role: RoomRole;
+}
+
+export interface Room {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: RoomMember[];
+  createdAt: string;
+}
+./rooms/room.store.ts
+
+
+/* ===============================
+   FILE: ./rooms/room.store.ts
+=============================== */
+
+import { Room, RoomMember } from "./room.types";
+
+const rooms = new Map<string, Room>();
+
+export function createRoom(room: Room) {
+  rooms.set(room.id, room);
+  return room;
+}
+
+export function getRoom(roomId: string) {
+  return rooms.get(roomId) ?? null;
+}
+
+export function addMember(roomId: string, member: RoomMember) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+
+  const exists = room.members.some(m => m.userId === member.userId);
+  if (!exists) room.members.push(member);
+
+  return room;
+}
+
+export function removeMember(roomId: string, userId: string) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+
+  room.members = room.members.filter(m => m.userId !== userId);
+  return room;
+}
+./rooms/RoomProvider.tsx
+
+
+/* ===============================
+   FILE: ./rooms/RoomProvider.tsx
+=============================== */
+
+"use client";
+
+import { useEffect } from "react";
+import type { Room } from "./room.types";
+import { useRoomStore } from "./room.client.store";
+
+interface RoomProviderProps {
+  room: Room;
+  children: React.ReactNode;
+}
+
+export default function RoomProvider({
+  room,
+  children,
+}: RoomProviderProps) {
+  const setRoom = useRoomStore((s) => s.setRoom);
+  const reset = useRoomStore((s) => s.reset);
+
+  useEffect(() => {
+    setRoom(room);
+
+    return () => {
+      reset();
+    };
+  }, [room, setRoom, reset]);
+
+  return <>{children}</>;
+}
+./rooms/RoomShellClient.tsx
+
+
+/* ===============================
+   FILE: ./rooms/RoomShellClient.tsx
+=============================== */
+
+"use client";
+
+import dynamic from "next/dynamic";
+
+const RoomShell = dynamic(() => import("./RoomShell"), {
+  ssr: false,
+});
+
+export default RoomShell;
+./rooms/room.service.ts
+
+
+/* ===============================
+   FILE: ./rooms/room.service.ts
+=============================== */
+
+/* ===============================
+   FILE: features/rooms/room.service.ts
+=============================== */
+
+import type { Room } from "./room.types";
+import { getRoom } from "./room.store";
+
+/**
+ * Load a room by ID.
+ *
+ * Source of truth:
+ * - In-memory room store (Map)
+ *
+ * Returns:
+ * - Room if found
+ * - null if not found
+ */
+export async function getRoomById(
+  roomId: string
+): Promise<Room | null> {
+  if (!roomId || roomId.length < 6) {
+    return null;
+  }
+
+  // In-memory lookup
+  const room = getRoom(roomId);
+
+  if (!room) {
+    return null;
+  }
+
+  return room;
+}
+./rooms/room.client.store.ts
+
+
+/* ===============================
+   FILE: ./rooms/room.client.store.ts
+=============================== */
+
+import { create } from "zustand";
+import type { Room, RoomMember, RoomRole } from "./room.types";
+
+interface RoomState {
+  room: Room | null;
+  isLoading: boolean;
+  error: string | null;
+
+  /* ---------- State setters ---------- */
+  setRoom: (room: Room) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+
+  /* ---------- Mutations ---------- */
+  updateMemberRole: (userId: string, role: RoomRole) => void;
+  addMember: (member: RoomMember) => void;
+  removeMember: (userId: string) => void;
+
+  /* ---------- Lifecycle ---------- */
+  reset: () => void;
+}
+
+export const useRoomStore = create<RoomState>((set) => ({
+  room: null,
+  isLoading: true,
+  error: null,
+
+  /* ---------- Basic setters ---------- */
+
+  setRoom: (room) =>
+    set({
+      room,
+      isLoading: false,
+      error: null,
+    }),
+
+  setLoading: (loading) =>
+    set({
+      isLoading: loading,
+    }),
+
+  setError: (error) =>
+    set({
+      error,
+      isLoading: false,
+    }),
+
+  /* ---------- Mutations ---------- */
+
+  updateMemberRole: (userId, role) =>
+    set((state) => {
+      if (!state.room) return state;
+
+      const members = state.room.members.map((m) =>
+        m.userId === userId ? { ...m, role } : m
+      );
+
+      return {
+        room: {
+          ...state.room,
+          members,
+        },
+      };
+    }),
+
+  addMember: (member) =>
+    set((state) => {
+      if (!state.room) return state;
+
+      // prevent duplicates
+      const exists = state.room.members.some(
+        (m) => m.userId === member.userId
+      );
+
+      if (exists) return state;
+
+      return {
+        room: {
+          ...state.room,
+          members: [...state.room.members, member],
+        },
+      };
+    }),
+
+  removeMember: (userId) =>
+    set((state) => {
+      if (!state.room) return state;
+
+      return {
+        room: {
+          ...state.room,
+          members: state.room.members.filter(
+            (m) => m.userId !== userId
+          ),
+        },
+      };
+    }),
+
+  /* ---------- Reset ---------- */
+
+  reset: () =>
+    set({
+      room: null,
+      isLoading: true,
+      error: null,
+    }),
+}));
+./collaboration/client/socket.ts
+
+
+/* ===============================
+   FILE: ./collaboration/client/socket.ts
+=============================== */
+
+import { io, Socket } from "socket.io-client";
+
+let socket: Socket | null = null;
+
+export function getSocket(): Socket {
+  if (!socket) {
+    socket = io(process.env.NEXT_PUBLIC_WS_URL!, {
+      transports: ["websocket"],
+      autoConnect: false,
+      reconnection: true,
+    });
+  }
+
+  return socket;
+}
+
+/**
+ * Ephemeral client instance ID
+ * Used ONLY for awareness/cursors
+ */
+export const CLIENT_ID =
+  typeof crypto !== "undefined"
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+./collaboration/client/connection.ts
+
+
+/* ===============================
+   FILE: ./collaboration/client/connection.ts
+=============================== */
+
+// features/collaboration/client/connection.ts
+
+import { getSocket } from "./socket";
+import { eventBus } from "./event-bus";
+
+let activeRoomId: string | null = null;
+let isConnecting = false;
+
+export function connect(roomId: string, userId: string) {
+  if (isConnecting) {
+    console.log("Connection already in progress");
+    return;
+  }
+
+  isConnecting = true;
+  const socket = getSocket();
+
+  // Connect if not already connected
+  if (!socket.connected) {
+    socket.connect();
+  }
+
+  activeRoomId = roomId;
+
+  /* ---------- Setup event handlers (once) ---------- */
+  
+  // Only set up handlers if not already set
+  if (!socket.hasListeners("connect")) {
+    socket.on("connect", () => {
+      console.log("Socket connected:", socket.id);
+      if (activeRoomId) {
+        socket.emit("room:join", { roomId: activeRoomId, userId });
+      }
+    });
+  }
+
+  if (!socket.hasListeners("disconnect")) {
+    socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
+      isConnecting = false;
+    });
+  }
+
+  if (!socket.hasListeners("connect_error")) {
+    socket.on("connect_error", (err) => {
+      console.error("Connection error:", err);
+      isConnecting = false;
+    });
+  }
+
+  // File system events
+  if (!socket.hasListeners("fs:snapshot")) {
+    socket.on("fs:snapshot", (p) => {
+      console.log("Received fs:snapshot", p);
+      eventBus.emit("fs:snapshot", p);
+    });
+  }
+
+  if (!socket.hasListeners("fs:create")) {
+    socket.on("fs:create", (p) => {
+      console.log("Received fs:create", p);
+      eventBus.emit("fs:create", p);
+    });
+  }
+
+  if (!socket.hasListeners("fs:rename")) {
+    socket.on("fs:rename", (p) => {
+      console.log("Received fs:rename", p);
+      eventBus.emit("fs:rename", p);
+    });
+  }
+
+  if (!socket.hasListeners("fs:delete")) {
+    socket.on("fs:delete", (p) => {
+      console.log("Received fs:delete", p);
+      eventBus.emit("fs:delete", p);
+    });
+  }
+
+  // Presence events
+  if (!socket.hasListeners("presence:update")) {
+    socket.on("presence:update", (p) => {
+      console.log("Received presence:update", p);
+      eventBus.emit("presence:update", p);
+    });
+  }
+
+  if (!socket.hasListeners("presence:join")) {
+    socket.on("presence:join", (p) => {
+      console.log("Received presence:join", p);
+      eventBus.emit("presence:join", p);
+    });
+  }
+
+  if (!socket.hasListeners("presence:leave")) {
+    socket.on("presence:leave", (p) => {
+      console.log("Received presence:leave", p);
+      eventBus.emit("presence:leave", p);
+    });
+  }
+
+  /* ---------- Join room if already connected ---------- */
+  if (socket.connected) {
+    socket.emit("room:join", { roomId, userId });
+  }
+
+  isConnecting = false;
+  eventBus.emit("room:joined", { roomId });
+}
+
+export function disconnect(roomId: string) {
+  const socket = getSocket();
+
+  if (socket.connected && activeRoomId === roomId) {
+    socket.emit("room:leave", { roomId });
+  }
+
+  activeRoomId = null;
+  eventBus.emit("room:left", { roomId });
+  
+  // Don't clear event bus or disconnect socket completely
+  // as we might reconnect to another room
+}
+
+export function isConnected(): boolean {
+  return getSocket().connected;
+}
+
+export function getActiveRoomId(): string | null {
+  return activeRoomId;
+}./collaboration/client/event-bus.ts
+
+
+/* ===============================
+   FILE: ./collaboration/client/event-bus.ts
+=============================== */
+
+import type {
+  PresenceSnapshot,
+  PresenceJoinPayload,
+  PresenceLeavePayload,
+} from "@/features/collaboration/presence/presence.types";
+
+import type {
+  TerminalSession,
+  TerminalLog,
+} from "@/features/terminal/terminal.store";
+
+type EventMap = {
+  /* -------- Room -------- */
+  "room:joined": { roomId: string };
+  "room:left": { roomId: string };
+
+  /* -------- Filesystem -------- */
+  "fs:snapshot": unknown;
+  "fs:create": unknown;
+  "fs:rename": unknown;
+  "fs:delete": unknown;
+
+  /* -------- Presence -------- */
+  "presence:update": PresenceSnapshot;
+  "presence:join": PresenceJoinPayload;
+  "presence:leave": PresenceLeavePayload;
+
+  /* -------- Terminal -------- */
+  "terminal:session": TerminalSession;
+  "terminal:log": TerminalLog;
+};
+
+
+
+
+type Handler<T> = (payload: T) => void;
+
+class EventBus {
+  private listeners = new Map<keyof EventMap, Set<Handler<any>>>();
+
+  on<K extends keyof EventMap>(
+    event: K,
+    handler: Handler<EventMap[K]>
+  ) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+
+    this.listeners.get(event)!.add(handler);
+    return () => this.listeners.get(event)!.delete(handler);
+  }
+
+  emit<K extends keyof EventMap>(
+    event: K,
+    payload: EventMap[K]
+  ) {
+    this.listeners.get(event)?.forEach((h) => h(payload));
+  }
+
+  clear() {
+    this.listeners.clear();
+  }
+}
+
+export const eventBus = new EventBus();
+./collaboration/presence/presence.types.ts
+
+
+/* ===============================
+   FILE: ./collaboration/presence/presence.types.ts
+=============================== */
+
+export interface PresenceUser {
+  userId: string;
+  name: string;
+  color: string;
+  online: boolean;
+  lastSeen: number;
+}
+
+export interface PresenceSnapshot {
+  roomId: string;
+  users: PresenceUser[];
+}
+
+export interface PresenceJoinPayload extends PresenceUser {}
+
+export interface PresenceLeavePayload {
+  userId: string;
+}
+./collaboration/presence/presence.store.ts
+
+
+/* ===============================
+   FILE: ./collaboration/presence/presence.store.ts
+=============================== */
+
+import { create } from "zustand";
+import type { PresenceUser } from "./presence.types";
+
+interface PresenceState {
+  users: Record<string, PresenceUser>;
+
+  setSnapshot: (users: PresenceUser[]) => void;
+  upsertUser: (user: PresenceUser) => void;
+  markOffline: (userId: string) => void;
+  clear: () => void;
+}
+
+export const usePresenceStore = create<PresenceState>((set) => ({
+  users: {},
+
+  setSnapshot: (users) =>
+    set(() => {
+      const map: Record<string, PresenceUser> = {};
+      const now = Date.now();
+
+      for (const u of users) {
+        map[u.userId] = {
+          ...u,
+          online: true,
+          lastSeen: u.lastSeen ?? now,
+        };
+      }
+
+      return { users: map };
+    }),
+
+  upsertUser: (user) =>
+    set((state) => ({
+      users: {
+        ...state.users,
+        [user.userId]: {
+          ...state.users[user.userId],
+          ...user,
+          online: true,
+          lastSeen: Date.now(),
+        },
+      },
+    })),
+
+  markOffline: (userId) =>
+    set((state) => {
+      const user = state.users[userId];
+      if (!user) return state;
+
+      return {
+        users: {
+          ...state.users,
+          [userId]: {
+            ...user,
+            online: false,
+            lastSeen: Date.now(),
+          },
+        },
+      };
+    }),
+
+  clear: () => set({ users: {} }),
+}));
+./collaboration/presence/presence.handlers.ts
+
+
+/* ===============================
+   FILE: ./collaboration/presence/presence.handlers.ts
+=============================== */
+
+import { eventBus } from "../client/event-bus";
+import { usePresenceStore } from "./presence.store";
+import type {
+  PresenceSnapshot,
+  PresenceUser,
+} from "./presence.types";
+
+/* ---------- Runtime validation ---------- */
+
+function isPresenceUser(u: any): u is PresenceUser {
+  return (
+    u &&
+    typeof u.userId === "string" &&
+    typeof u.name === "string" &&
+    typeof u.color === "string"
+  );
+}
+
+function isSnapshot(p: any): p is PresenceSnapshot {
+  return (
+    p &&
+    typeof p.roomId === "string" &&
+    Array.isArray(p.users)
+  );
+}
+
+/* ---------- Registration ---------- */
+
+export function registerPresenceHandlers(roomId: string) {
+  const store = usePresenceStore.getState();
+
+  /* ---- Full snapshot ---- */
+  const offSnapshot = eventBus.on(
+    "presence:update",
+    (payload) => {
+      if (!isSnapshot(payload)) return;
+      if (payload.roomId !== roomId) return;
+
+      const validUsers = payload.users.filter(isPresenceUser);
+      store.setSnapshot(validUsers);
+    }
+  );
+
+  /* ---- User joined ---- */
+  const offJoin = eventBus.on(
+    "presence:join",
+    (payload) => {
+      if (!isPresenceUser(payload)) return;
+      store.upsertUser(payload);
+    }
+  );
+
+  /* ---- User left ---- */
+  const offLeave = eventBus.on(
+    "presence:leave",
+    (payload) => {
+      if (!payload || typeof payload.userId !== "string") return;
+      store.markOffline(payload.userId);
+    }
+  );
+
+  /* ---- Room lifecycle ---- */
+  const offRoomLeave = eventBus.on(
+    "room:left",
+    () => {
+      store.clear();
+    }
+  );
+
+  return () => {
+    offSnapshot();
+    offJoin();
+    offLeave();
+    offRoomLeave();
+  };
+}
+./collaboration/filesystem/fs.action.ts
+
+
+/* ===============================
+   FILE: ./collaboration/filesystem/fs.action.ts
+=============================== */
+
+// features/collaboration/filesystem/fs.action.ts
+
+import { getSocket } from "../client/socket";
+
+interface CreateNodeInput {
+  roomId: string;
+  parentId?: string | null; // Made optional with null support
+  name: string;
+  type: "file" | "folder";
+}
+
+export function createNode(input: CreateNodeInput) {
+  const socket = getSocket();
+  
+  // Ensure parentId is explicitly passed (null for root level)
+  const payload = {
+    ...input,
+    parentId: input.parentId ?? null
+  };
+  
+  socket.emit("fs:create", payload);
+}
+
+export function renameNode(input: {
+  roomId: string;
+  id: string;
+  name: string;
+}) {
+  getSocket().emit("fs:rename", input);
+}
+
+export function deleteNode(input: {
+  roomId: string;
+  id: string;
+}) {
+  getSocket().emit("fs:delete", input);
+}./collaboration/filesystem/fs.store.ts
+
+
+/* ===============================
+   FILE: ./collaboration/filesystem/fs.store.ts
+=============================== */
+
+import { create } from "zustand";
+import type { FSNode } from "./fs.types";
+
+interface FSState {
+  nodes: Record<string, FSNode>;
+
+  setSnapshot: (nodes: FSNode[]) => void;
+  upsertNode: (node: FSNode) => void;
+  removeNode: (id: string) => void;
+  clear: () => void;
+}
+
+export const useFSStore = create<FSState>((set) => ({
+  nodes: {},
+
+  setSnapshot: (nodes) =>
+    set(() => {
+      const map: Record<string, FSNode> = {};
+      for (const n of nodes) {
+        map[n.id] = n;
+      }
+      return { nodes: map };
+    }),
+
+  upsertNode: (node) =>
+    set((state) => ({
+      nodes: {
+        ...state.nodes,
+        [node.id]: node,
+      },
+    })),
+
+  removeNode: (id) =>
+    set((state) => {
+      const next = { ...state.nodes };
+      delete next[id];
+
+      // defensive: remove children (server should already do this)
+      for (const node of Object.values(next)) {
+        if (node.parentId === id) {
+          delete next[node.id];
+        }
+      }
+
+      return { nodes: next };
+    }),
+
+  clear: () => set({ nodes: {} }),
+}));
+./collaboration/filesystem/fs.types.ts
+
+
+/* ===============================
+   FILE: ./collaboration/filesystem/fs.types.ts
+=============================== */
+
+export type FSNodeType = "root" | "folder" | "file";
+
+export interface FSNode {
+  id: string;            // assigned by server
+  name: string;
+  type: FSNodeType;
+  parentId: string | null;
+  path: string;          // server-computed, canonical
+  updatedAt: number;
+}
+
+export interface FSSnapshot {
+  roomId: string;
+  nodes: FSNode[];
+}
+./collaboration/filesystem/fs.handlers.ts
+
+
+/* ===============================
+   FILE: ./collaboration/filesystem/fs.handlers.ts
+=============================== */
+
+import { eventBus } from "../client/event-bus";
+import { useFSStore } from "./fs.store";
+import type { FSSnapshot, FSNode } from "./fs.types";
+
+/* ---------- Runtime validation ---------- */
+
+function isNode(p: unknown): p is FSNode {
+  if (!p || typeof p !== "object") return false;
+
+  const n = p as FSNode;
+
+  return (
+    typeof n.id === "string" &&
+    typeof n.name === "string" &&
+    typeof n.type === "string" &&
+    typeof n.path === "string"
+  );
+}
+
+function isSnapshot(p: unknown): p is FSSnapshot {
+  if (!p || typeof p !== "object") return false;
+
+  const s = p as FSSnapshot;
+
+  return (
+    typeof s.roomId === "string" &&
+    Array.isArray(s.nodes)
+  );
+}
+
+function isDeletePayload(p: unknown): p is { id: string } {
+  if (!p || typeof p !== "object") return false;
+  return typeof (p as { id?: unknown }).id === "string";
+}
+
+/* ---------- Registration ---------- */
+
+export function registerFSHandlers(roomId: string) {
+  const store = useFSStore.getState();
+
+  const offSnapshot = eventBus.on(
+    "fs:snapshot",
+    (payload: unknown) => {
+      if (!isSnapshot(payload)) return;
+      if (payload.roomId !== roomId) return;
+
+      const validNodes = payload.nodes.filter(isNode);
+      store.setSnapshot(validNodes);
+    }
+  );
+
+  const offCreate = eventBus.on(
+    "fs:create",
+    (payload: unknown) => {
+      if (!isNode(payload)) return;
+      store.upsertNode(payload);
+    }
+  );
+
+  const offRename = eventBus.on(
+    "fs:rename",
+    (payload: unknown) => {
+      if (!isNode(payload)) return;
+      store.upsertNode(payload);
+    }
+  );
+
+  const offDelete = eventBus.on(
+    "fs:delete",
+    (payload: unknown) => {
+      if (!isDeletePayload(payload)) return;
+      store.removeNode(payload.id);
+    }
+  );
+
+  const offLeave = eventBus.on(
+    "room:left",
+    () => {
+      store.clear();
+    }
+  );
+
+  return () => {
+    offSnapshot();
+    offCreate();
+    offRename();
+    offDelete();
+    offLeave();
+  };
+}
+./collaboration/editor/yjs.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/yjs.ts
+=============================== */
+
+import * as Y from "yjs";
+
+const docs = new Map<string, Y.Doc>();
+
+function getKey(roomId: string, fileId: string) {
+  return `${roomId}:${fileId}`;
+}
+
+export function getYDoc(roomId: string, fileId: string): Y.Doc {
+  const key = getKey(roomId, fileId);
+
+  let doc = docs.get(key);
+  if (!doc) {
+    doc = new Y.Doc();
+    docs.set(key, doc);
+  }
+
+  return doc;
+}
+./collaboration/editor/monaco-yjs.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/monaco-yjs.ts
+=============================== */
+
+// features/collaboration/editor/monaco-yjs.ts
+
+import type * as monaco from "monaco-editor";
+import * as Y from "yjs";
+
+export function bindMonacoToYText(
+  model: monaco.editor.ITextModel,
+  ytext: Y.Text
+) {
+  let applyingRemote = false;
+  let applyingLocal = false;
+  let disposed = false;
+
+  /* ---------- Check if model is valid ---------- */
+  if (model.isDisposed()) {
+    console.error("Cannot bind disposed model");
+    return () => {};
+  }
+
+  /* ---------- Initial sync: Yjs → Monaco ---------- */
+  const initialContent = ytext.toString();
+  if (initialContent && model.getValue() !== initialContent) {
+    try {
+      model.setValue(initialContent);
+    } catch (err) {
+      console.error("Initial sync failed:", err);
+    }
+  }
+
+  /* ---------- Yjs → Monaco (updates) ---------- */
+  const yObserver = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+    if (disposed) return;
+    if (applyingLocal) return;
+    if (transaction.local) return;
+
+    applyingRemote = true;
+
+    // Use double RAF for maximum safety
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (disposed || model.isDisposed()) {
+          applyingRemote = false;
+          return;
+        }
+
+        try {
+          const newValue = ytext.toString();
+          const currentValue = model.getValue();
+
+          if (newValue === currentValue) {
+            applyingRemote = false;
+            return;
+          }
+
+          // Use setValue which is safer than pushEditOperations
+          model.setValue(newValue);
+          
+        } catch (err) {
+          console.error("Error applying Yjs update:", err);
+        } finally {
+          applyingRemote = false;
+        }
+      });
+    });
+  };
+
+  ytext.observe(yObserver);
+
+  /* ---------- Monaco → Yjs ---------- */
+  let updateTimeout: NodeJS.Timeout | null = null;
+
+  const monacoDisposable = model.onDidChangeContent(() => {
+    if (disposed || model.isDisposed()) return;
+    if (applyingRemote) return;
+
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
+
+    updateTimeout = setTimeout(() => {
+      if (disposed || model.isDisposed() || applyingRemote) return;
+
+      applyingLocal = true;
+
+      try {
+        const newContent = model.getValue();
+        const oldContent = ytext.toString();
+
+        if (newContent !== oldContent && ytext.doc) {
+          ytext.doc.transact(() => {
+            ytext.delete(0, ytext.length);
+            ytext.insert(0, newContent);
+          }, "local");
+        }
+      } catch (err) {
+        console.error("Error syncing to Yjs:", err);
+      } finally {
+        applyingLocal = false;
+      }
+    }, 50);
+  });
+
+  /* ---------- Cleanup ---------- */
+  return () => {
+    disposed = true;
+    
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+      updateTimeout = null;
+    }
+    
+    try {
+      ytext.unobserve(yObserver);
+    } catch (err) {
+      console.error("Error unobserving ytext:", err);
+    }
+    
+    try {
+      monacoDisposable.dispose();
+    } catch (err) {
+      console.error("Error disposing Monaco listener:", err);
+    }
+  };
+}./collaboration/editor/yjs-awareness.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/yjs-awareness.ts
+=============================== */
+
+import { Awareness } from "y-protocols/awareness";
+import { getSocket } from "@/features/collaboration/client/socket";
+
+export function setupAwareness(
+  awareness: Awareness,
+  roomId: string,
+  fileId: string
+) {
+  const socket = getSocket();
+
+  /* ---------- local → server ---------- */
+  awareness.on(
+    "update",
+    ({
+      added,
+      updated,
+      removed,
+    }: {
+      added: number[];
+      updated: number[];
+      removed: number[];
+    }) => {
+      const changed = [...added, ...updated, ...removed];
+
+      for (const clientId of changed) {
+        const state = awareness.getStates().get(clientId) ?? null;
+
+        socket.emit("awareness:update", {
+          roomId,
+          fileId,
+          clientId,
+          state,
+        });
+      }
+    }
+  );
+
+  /* ---------- server → local ---------- */
+  socket.on("awareness:update", (payload) => {
+    if (payload.fileId !== fileId) return;
+
+    const { clientId, state } = payload;
+
+    if (state === null) {
+      awareness.getStates().delete(clientId);
+    } else {
+      awareness.getStates().set(clientId, state);
+    }
+  });
+}
+./collaboration/editor/monaco-awareness.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/monaco-awareness.ts
+=============================== */
+
+import type * as monaco from "monaco-editor";
+import { Awareness } from "y-protocols/awareness";
+
+export function bindAwarenessToMonaco(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  awareness: Awareness
+) {
+  editor.onDidChangeCursorSelection(() => {
+    const selection = editor.getSelection();
+    if (!selection) return;
+
+    awareness.setLocalStateField("cursor", {
+      start: selection.getStartPosition(),
+      end: selection.getEndPosition(),
+    });
+  });
+}
+./collaboration/editor/render-cursors.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/render-cursors.ts
+=============================== */
+
+// features/collaboration/editor/render-cursors.ts
+
+import * as monaco from "monaco-editor";
+import { Awareness } from "y-protocols/awareness";
+
+const decorations = new Map<number, string[]>();
+let isRendering = false;
+
+export function renderRemoteCursors(
+  editor: monaco.editor.IStandaloneCodeEditor,
+  awareness: Awareness
+) {
+  // Prevent concurrent rendering
+  if (isRendering) return;
+  
+  isRendering = true;
+
+  try {
+    const model = editor.getModel();
+    if (!model) {
+      isRendering = false;
+      return;
+    }
+
+    const states = awareness.getStates();
+    const localClientId = awareness.clientID;
+
+    // Clean up old decorations for clients that left
+    const activeClients = new Set(states.keys());
+    for (const [clientId] of decorations.entries()) {
+      if (!activeClients.has(clientId) && clientId !== localClientId) {
+        const oldDecorations = decorations.get(clientId) || [];
+        editor.deltaDecorations(oldDecorations, []);
+        decorations.delete(clientId);
+      }
+    }
+
+    // Render cursors for each remote client
+    for (const [clientId, state] of states.entries()) {
+      // Skip local client
+      if (clientId === localClientId) continue;
+
+      // Skip if no cursor data
+      if (!state?.cursor) {
+        const oldDecorations = decorations.get(clientId) || [];
+        if (oldDecorations.length > 0) {
+          editor.deltaDecorations(oldDecorations, []);
+          decorations.delete(clientId);
+        }
+        continue;
+      }
+
+      const { start, end } = state.cursor;
+      const user = state.user || {};
+      const color = user.color || "#4f46e5";
+
+      try {
+        // Validate positions before creating range
+        const lineCount = model.getLineCount();
+        const startLine = Math.max(1, Math.min(start.lineNumber || 1, lineCount));
+        const endLine = Math.max(1, Math.min(end.lineNumber || 1, lineCount));
+
+        const startLineLength = model.getLineMaxColumn(startLine);
+        const endLineLength = model.getLineMaxColumn(endLine);
+
+        const startColumn = Math.max(1, Math.min(start.column || 1, startLineLength));
+        const endColumn = Math.max(1, Math.min(end.column || 1, endLineLength));
+
+        // Create range safely
+        const range = new monaco.Range(
+          startLine,
+          startColumn,
+          endLine,
+          endColumn
+        );
+
+        // Create decoration
+        const newDecorations = [
+          {
+            range,
+            options: {
+              className: "remote-selection",
+              inlineClassName: "remote-cursor",
+              stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+              beforeContentClassName: "remote-cursor-label",
+              before: {
+                content: user.name || "User",
+                inlineClassName: "remote-cursor-name",
+                inlineClassNameAffectsLetterSpacing: true,
+              },
+            },
+          },
+        ];
+
+        // Apply decorations
+        const old = decorations.get(clientId) || [];
+        const applied = editor.deltaDecorations(old, newDecorations);
+        decorations.set(clientId, applied);
+
+      } catch (err) {
+        console.error("Error rendering cursor for client", clientId, err);
+        // Clean up on error
+        const oldDecorations = decorations.get(clientId) || [];
+        if (oldDecorations.length > 0) {
+          try {
+            editor.deltaDecorations(oldDecorations, []);
+          } catch {}
+          decorations.delete(clientId);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in renderRemoteCursors:", err);
+  } finally {
+    isRendering = false;
+  }
+}
+
+/**
+ * Clear all remote cursors
+ */
+export function clearRemoteCursors(
+  editor: monaco.editor.IStandaloneCodeEditor
+) {
+  for (const [clientId, oldDecorations] of decorations.entries()) {
+    try {
+      editor.deltaDecorations(oldDecorations, []);
+    } catch (err) {
+      console.error("Error clearing decorations:", err);
+    }
+    decorations.delete(clientId);
+  }
+}./collaboration/editor/yjs-transport.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/yjs-transport.ts
+=============================== */
+
+// features/collaboration/editor/yjs-transport.ts
+
+import * as Y from "yjs";
+import { getSocket } from "@/features/collaboration/client/socket";
+
+export function bindYjsToSocket(
+  doc: Y.Doc,
+  roomId: string,
+  fileId: string
+) {
+  const socket = getSocket();
+  let isSynced = false;
+
+  /* ---------- Local → Server ---------- */
+  const onLocalUpdate = (update: Uint8Array, origin: any) => {
+    // Don't send updates that came from the server
+    if (origin === "server") return;
+    if (!isSynced) return; // Wait for initial sync
+
+    socket.emit("yjs:update", {
+      roomId,
+      fileId,
+      update: Array.from(update), // Convert to array for JSON serialization
+    });
+  };
+
+  doc.on("update", onLocalUpdate);
+
+  /* ---------- Server → Local ---------- */
+  const onRemoteUpdate = (payload: {
+    fileId: string;
+    update: number[] | Uint8Array;
+  }) => {
+    if (payload.fileId !== fileId) return;
+
+    try {
+      const update = 
+        payload.update instanceof Uint8Array 
+          ? payload.update 
+          : new Uint8Array(payload.update);
+
+      Y.applyUpdate(doc, update, "server");
+    } catch (err) {
+      console.error("Error applying remote Yjs update:", err);
+    }
+  };
+
+  socket.on("yjs:update", onRemoteUpdate);
+
+  /* ---------- Initial sync ---------- */
+  const onInitialSync = (payload: { 
+    fileId: string; 
+    update: number[] | Uint8Array;
+  }) => {
+    if (payload.fileId !== fileId) return;
+
+    try {
+      const update = 
+        payload.update instanceof Uint8Array 
+          ? payload.update 
+          : new Uint8Array(payload.update);
+
+      Y.applyUpdate(doc, update, "server");
+      isSynced = true;
+    } catch (err) {
+      console.error("Error applying initial Yjs sync:", err);
+      isSynced = true; // Still mark as synced to allow local edits
+    }
+  };
+
+  socket.once("yjs:sync", onInitialSync);
+
+  // Request initial state
+  socket.emit("yjs:join", { roomId, fileId });
+
+  // Fallback: mark as synced after timeout
+  const syncTimeout = setTimeout(() => {
+    isSynced = true;
+  }, 2000);
+
+  /* ---------- Cleanup ---------- */
+  return () => {
+    clearTimeout(syncTimeout);
+    doc.off("update", onLocalUpdate);
+    socket.off("yjs:update", onRemoteUpdate);
+    socket.off("yjs:sync", onInitialSync);
+  };
+}./collaboration/editor/editor.store.ts
+
+
+/* ===============================
+   FILE: ./collaboration/editor/editor.store.ts
+=============================== */
+
+import { create } from "zustand";
+
+interface OpenFile {
+  fileId: string;
+  name: string;
+  language: string;
+}
+
+interface EditorUIState {
+  activeFileId: string | null;
+  openFiles: Record<string, OpenFile>;
+
+  openFile: (file: OpenFile) => void;
+  closeFile: (fileId: string) => void;
+  setActiveFile: (fileId: string) => void;
+}
+
+export const useEditorStore = create<EditorUIState>((set) => ({
+  activeFileId: null,
+  openFiles: {},
+
+  openFile: (file) =>
+    set((state) => ({
+      activeFileId: file.fileId,
+      openFiles: {
+        ...state.openFiles,
+        [file.fileId]: file,
+      },
+    })),
+
+  closeFile: (fileId) =>
+    set((state) => {
+      const next = { ...state.openFiles };
+      delete next[fileId];
+
+      const remaining = Object.keys(next);
+      return {
+        openFiles: next,
+        activeFileId:
+          state.activeFileId === fileId
+            ? remaining[0] ?? null
+            : state.activeFileId,
+      };
+    }),
+
+  setActiveFile: (fileId) =>
+    set(() => ({ activeFileId: fileId })),
+}));
+./collaboration/collaboration.provider.tsx
+
+
+/* ===============================
+   FILE: ./collaboration/collaboration.provider.tsx
+=============================== */
+
+"use client";
+
+import { useEffect } from "react";
+
+import { connect, disconnect } from "./client/connection";
+
+import { registerPresenceHandlers } from "./presence/presence.handlers";
+import { registerFSHandlers } from "./filesystem/fs.handlers";
+
+interface CollaborationProviderProps {
+  roomId: string;
+  userId: string;
+  children: React.ReactNode;
+}
+
+/**
+ * Authoritative collaboration lifecycle owner.
+ *
+ * - One socket
+ * - One room
+ * - One set of handlers
+ * - Clean teardown
+ */
+export default function CollaborationProvider({
+  roomId,
+  userId,
+  children,
+}: CollaborationProviderProps) {
+  useEffect(() => {
+    /* ---------- Connect & join room ---------- */
+    connect(roomId, userId);
+
+    /* ---------- Register feature handlers ---------- */
+    const unregisterPresence = registerPresenceHandlers(roomId);
+    const unregisterFS = registerFSHandlers(roomId);
+
+    /* ---------- Cleanup ---------- */
+    return () => {
+      unregisterPresence?.();
+      unregisterFS?.();
+
+      disconnect(roomId);
+    };
+  }, [roomId, userId]);
+
+  return <>{children}</>;
+}
+./filesystem/FileTree.tsx
+
+
+/* ===============================
+   FILE: ./filesystem/FileTree.tsx
+=============================== */
+
+"use client";
+
+import { Fragment, useMemo, useState } from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { getFileIcon } from "./file.icon";
+
+import { useFSStore } from "@/features/collaboration/filesystem/fs.store";
+import {
+  createNode,
+  renameNode,
+  deleteNode,
+} from "@/features/collaboration/filesystem/fs.action";
+
+import { useEditorStore } from "@/features/collaboration/editor/editor.store";
+import { getLanguageFromFilename } from "@/features/editor/language";
+import type { FSNode } from "@/features/collaboration/filesystem/fs.types";
+
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+} from "@/components/ui/context-menu";
+
+/* ---------------- Helpers ---------------- */
+
+function buildTree(nodes: FSNode[]) {
+  const map = new Map<string | null, FSNode[]>();
+
+  for (const node of nodes) {
+    const key = node.parentId ?? null;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(node);
+  }
+
+  for (const children of map.values()) {
+    children.sort((a, b) => {
+      if (a.type !== b.type) {
+        return a.type === "folder" ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  return map;
+}
+
+/* ---------------- Component ---------------- */
+
+export default function FileTree({ roomId }: { roomId: string }) {
+  /* ---------- Zustand (RAW snapshot only) ---------- */
+  const nodesMap = useFSStore((s) => s.nodes);
+  const openFile = useEditorStore((s) => s.openFile);
+  const activeFileId = useEditorStore((s) => s.activeFileId);
+
+  /* ---------- Derived state (memoized) ---------- */
+  const nodes = useMemo(
+    () => Object.values(nodesMap),
+    [nodesMap]
+  );
+
+  const tree = useMemo(
+    () => buildTree(nodes),
+    [nodes]
+  );
+
+  /* ---------- UI state ---------- */
+  const [expanded, setExpanded] =
+    useState<Record<string, boolean>>({});
+
+  function toggleFolder(id: string) {
+    setExpanded((s) => ({ ...s, [id]: !s[id] }));
+  }
+
+  function handleOpenFile(node: FSNode) {
+    openFile({
+      fileId: node.id,
+      name: node.name,
+      language: getLanguageFromFilename(node.name),
+    });
+  }
+
+  function renderNodes(
+    parentId: string | null,
+    depth = 0
+  ) {
+    const children = tree.get(parentId);
+    if (!children) return null;
+
+    return children.map((node) => {
+      const isFolder = node.type !== "file";
+      const isOpen = expanded[node.id];
+      const isActive = node.id === activeFileId;
+
+      const Icon = isFolder
+        ? isOpen
+          ? FolderOpen
+          : Folder
+        : getFileIcon(node.name);
+
+      return (
+        <Fragment key={node.id}>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <div
+                className={cn(
+                  "flex items-center gap-1 py-1 text-sm cursor-pointer select-none",
+                  "hover:bg-neutral-700",
+                  isActive &&
+                    "bg-neutral-800 text-white"
+                )}
+                style={{
+                  paddingLeft: 8 + depth * 14,
+                }}
+                onClick={() =>
+                  isFolder
+                    ? toggleFolder(node.id)
+                    : handleOpenFile(node)
+                }
+              >
+                {isFolder ? (
+                  isOpen ? (
+                    <ChevronDown size={12} />
+                  ) : (
+                    <ChevronRight size={12} />
+                  )
+                ) : (
+                  <span className="w-3" />
+                )}
+
+                <Icon size={14} />
+                <span className="truncate">
+                  {node.name}
+                </span>
+              </div>
+            </ContextMenuTrigger>
+
+            <ContextMenuContent>
+              {isFolder && (
+                <>
+                  <ContextMenuItem
+                    onClick={() =>
+                      createNode({
+                        roomId,
+                        parentId: node.id,
+                        name: "new-file.ts",
+                        type: "file",
+                      })
+                    }
+                  >
+                    New File
+                  </ContextMenuItem>
+
+                  <ContextMenuItem
+                    onClick={() =>
+                      createNode({
+                        roomId,
+                        parentId: node.id,
+                        name: "new-folder",
+                        type: "folder",
+                      })
+                    }
+                  >
+                    New Folder
+                  </ContextMenuItem>
+                </>
+              )}
+
+              <ContextMenuItem
+                onClick={() => {
+                  const name = prompt(
+                    "Rename",
+                    node.name
+                  );
+                  if (!name) return;
+
+                  renameNode({
+                    roomId,
+                    id: node.id,
+                    name,
+                  });
+                }}
+              >
+                Rename
+              </ContextMenuItem>
+
+              <ContextMenuItem
+                className="text-red-500"
+                onClick={() =>
+                  deleteNode({
+                    roomId,
+                    id: node.id,
+                  })
+                }
+              >
+                Delete
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+
+          {isFolder &&
+            isOpen &&
+            renderNodes(node.id, depth + 1)}
+        </Fragment>
+      );
+    });
+  }
+
+  /* ---------- Empty state ---------- */
+  if (!nodes.length) {
+    return (
+      <div className="p-2 text-sm text-neutral-500">
+        Empty workspace
+      </div>
+    );
+  }
+
+  /* ---------- Render ---------- */
+  return (
+    <div className="py-1">
+      {renderNodes(null)}
+    </div>
+  );
+}
+./filesystem/file.icon.ts
+
+
+/* ===============================
+   FILE: ./filesystem/file.icon.ts
+=============================== */
+
+
+import type { ElementType } from "react";
+import {
+  FileCode,
+  FileText,
+  FileJson,
+  FileType,
+  FileImage,
+} from "lucide-react";
+
+export function getFileIcon(name: string): ElementType {
+  const ext = name.split(".").pop()?.toLowerCase();
+
+  switch (ext) {
+    case "ts":
+    case "tsx":
+    case "js":
+    case "jsx":
+      return FileCode;
+    case "json":
+      return FileJson;
+    case "md":
+      return FileText;
+    case "png":
+    case "jpg":
+    case "jpeg":
+    case "svg":
+      return FileImage;
+    default:
+      return FileType;
+  }
+}
+./editor/EditorTabs.tsx
+
+
+/* ===============================
+   FILE: ./editor/EditorTabs.tsx
+=============================== */
+
+// features/editor/EditorTabs.tsx
+
+"use client";
+
+import { useEditorStore } from "@/features/collaboration/editor/editor.store";
+import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
+
+export default function EditorTabs() {
+  const openFiles = useEditorStore((s) => s.openFiles);
+  const activeFileId = useEditorStore((s) => s.activeFileId);
+  const setActiveFile = useEditorStore((s) => s.setActiveFile);
+  const closeFile = useEditorStore((s) => s.closeFile);
+
+  const files = Object.values(openFiles);
+
+  if (!files.length) return null;
+
+  const handleCloseFile = (
+    e: React.MouseEvent,
+    fileId: string
+  ) => {
+    e.stopPropagation();
+    closeFile(fileId);
+  };
+
+  return (
+    <div className="h-8 flex border-b border-neutral-700 bg-neutral-900 overflow-x-auto">
+      {files.map((file) => {
+        const isActive = file.fileId === activeFileId;
+        
+        return (
+          <div
+            key={file.fileId}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border border-neutral-800 min-w-fit",
+              "hover:bg-neutral-800 transition-colors",
+              isActive  
+                ? "bg-neutral-80  0 text-white rounded"
+                : "text-neutral-400"
+            )}
+            onClick={() => setActiveFile(file.fileId)}
+          >
+            <span className="truncate max-w-[140px]">
+              {file.name}
+            </span>
+
+            <button
+              className={cn(
+                "flex items-center justify-center w-4 h-4 rounded hover:bg-neutral-700",
+                "text-neutral-500 hover:text-red-400 transition-colors"
+              )}
+              onClick={(e) => handleCloseFile(e, file.fileId)}
+              aria-label="Close file"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}./editor/CodeEditor.tsx
+
+
+/* ===============================
+   FILE: ./editor/CodeEditor.tsx
+=============================== */
+
+// features/editor/CodeEditor.tsx
+
+"use client";
+
+import Editor, { OnMount } from "@monaco-editor/react";
+import { useEffect, useRef, useState } from "react";
+import { Awareness } from "y-protocols/awareness";
+import * as monaco from "monaco-editor";
+
+import { getYDoc } from "@/features/collaboration/editor/yjs";
+import { bindMonacoToYText } from "@/features/collaboration/editor/monaco-yjs";
+import { bindYjsToSocket } from "@/features/collaboration/editor/yjs-transport";
+import { setupAwareness } from "@/features/collaboration/editor/yjs-awareness";
+import { bindAwarenessToMonaco } from "@/features/collaboration/editor/monaco-awareness";
+import { renderRemoteCursors } from "@/features/collaboration/editor/render-cursors";
+
+import { useEditorStore } from "@/features/collaboration/editor/editor.store";
+import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
+
+interface CodeEditorProps {
+  roomId: string;
+}
+
+export default function CodeEditor({ roomId }: CodeEditorProps) {
+  const activeFileId = useEditorStore((s) => s.activeFileId);
+  const openFiles = useEditorStore((s) => s.openFiles);
+  const users = usePresenceStore((s) => s.users);
+
+  const file = activeFileId ? openFiles[activeFileId] : null;
+  const currentUser = Object.values(users).find((u) => u.online) ?? null;
+
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof monaco | null>(null);
+  
+  // Store models and their cleanup functions separately
+  const modelsRef = useRef<Map<string, {
+    model: monaco.editor.ITextModel;
+    cleanup?: () => void;
+  }>>(new Map());
+  
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle editor mount
+  const handleEditorMount: OnMount = (editor, monacoInstance) => {
+    editorRef.current = editor;
+    monacoRef.current = monacoInstance;
+  };
+
+  // Main cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up all models and their bindings
+      modelsRef.current.forEach(({ model, cleanup }) => {
+        try {
+          if (cleanup) cleanup();
+          if (!model.isDisposed()) {
+            model.dispose();
+          }
+        } catch (err) {
+          console.error("Model cleanup error:", err);
+        }
+      });
+      modelsRef.current.clear();
+      
+      // Don't dispose editor here - React will handle it
+      editorRef.current = null;
+      monacoRef.current = null;
+    };
+  }, []);
+
+  // Collaboration setup per file
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monacoInstance = monacoRef.current;
+    
+    if (!file || !editor || !monacoInstance || !currentUser) {
+      return;
+    }
+
+    // Check if editor is disposed
+    if (editor.getModel() === null && editor.getDomNode() === null) {
+      console.warn("Editor is disposed, skipping setup");
+      return;
+    }
+
+    setError(null);
+    
+    let isMounted = true;
+    let cleanup: (() => void) | null = null;
+
+    const setupCollaboration = async () => {
+      try {
+        /* ---------- Get or create model ---------- */
+        let modelData = modelsRef.current.get(file.fileId);
+        
+        if (!modelData) {
+          // Create new model
+          const model = monacoInstance.editor.createModel(
+            "",
+            file.language
+          );
+          
+          modelData = { model };
+          modelsRef.current.set(file.fileId, modelData);
+        } else {
+          // Update language if changed
+          if (modelData.model.getLanguageId() !== file.language) {
+            monacoInstance.editor.setModelLanguage(
+              modelData.model,
+              file.language
+            );
+          }
+        }
+
+        const model = modelData.model;
+
+        // Check model is valid
+        if (model.isDisposed()) {
+          console.error("Model is disposed");
+          return;
+        }
+
+        /* ---------- Clean up previous binding for this file ---------- */
+        if (modelData.cleanup) {
+          modelData.cleanup();
+          modelData.cleanup = undefined;
+        }
+
+        /* ---------- Set model on editor (safely) ---------- */
+        if (!isMounted) return;
+        
+        try {
+          // Only set if editor is still valid
+          const currentModel = editor.getModel();
+          if (currentModel !== model) {
+            editor.setModel(model);
+          }
+        } catch (err) {
+          console.error("Failed to set model:", err);
+          setError("Editor initialization failed");
+          return;
+        }
+
+        /* ---------- Yjs setup ---------- */
+        const doc = getYDoc(roomId, file.fileId);
+        const ytext = doc.getText("content");
+
+        const unbindText = bindMonacoToYText(model, ytext);
+
+        /* ---------- Yjs Transport ---------- */
+        const unbindTransport = bindYjsToSocket(doc, roomId, file.fileId);
+
+        /* ---------- Awareness ---------- */
+        const awareness = new Awareness(doc);
+
+        awareness.setLocalState({
+          user: {
+            userId: currentUser.userId,
+            name: currentUser.name,
+            color: currentUser.color,
+          },
+          cursor: null,
+        });
+
+        setupAwareness(awareness, roomId, file.fileId);
+        bindAwarenessToMonaco(editor, awareness);
+
+        /* ---------- Cursor rendering ---------- */
+        let cursorRenderInterval: NodeJS.Timeout | null = null;
+        let awarenessChangeTimeout: NodeJS.Timeout | null = null;
+        
+        const renderCursors = () => {
+          if (!isMounted) return;
+          try {
+            renderRemoteCursors(editor, awareness);
+          } catch (err) {
+            console.error("Cursor render error:", err);
+          }
+        };
+
+        // Start interval-based rendering
+        cursorRenderInterval = setInterval(renderCursors, 100);
+
+        // Also render on awareness change (throttled)
+        const onAwarenessChange = () => {
+          if (awarenessChangeTimeout) return;
+          
+          awarenessChangeTimeout = setTimeout(() => {
+            renderCursors();
+            awarenessChangeTimeout = null;
+          }, 50);
+        };
+
+        awareness.on("change", onAwarenessChange);
+
+        // Update cursor position on change
+        const cursorDisposable = editor.onDidChangeCursorPosition(() => {
+          if (!isMounted) return;
+          
+          try {
+            const selection = editor.getSelection();
+            if (!selection) return;
+
+            awareness.setLocalStateField("cursor", {
+              start: selection.getStartPosition(),
+              end: selection.getEndPosition(),
+            });
+          } catch (err) {
+            console.error("Cursor update error:", err);
+          }
+        });
+
+        /* ---------- Create cleanup function ---------- */
+        cleanup = () => {
+          isMounted = false;
+          
+          if (cursorRenderInterval) {
+            clearInterval(cursorRenderInterval);
+            cursorRenderInterval = null;
+          }
+          
+          if (awarenessChangeTimeout) {
+            clearTimeout(awarenessChangeTimeout);
+            awarenessChangeTimeout = null;
+          }
+          
+          try {
+            cursorDisposable.dispose();
+          } catch {}
+          
+          try {
+            awareness.off("change", onAwarenessChange);
+            awareness.destroy();
+          } catch {}
+          
+          try {
+            unbindTransport();
+          } catch {}
+          
+          try {
+            unbindText();
+          } catch {}
+        };
+
+        // Store cleanup for this file
+        modelData.cleanup = cleanup;
+
+      } catch (err) {
+        console.error("Collaboration setup error:", err);
+        if (isMounted) {
+          setError("Failed to setup collaboration");
+        }
+      }
+    };
+
+    // Run setup
+    setupCollaboration();
+
+    // Cleanup on unmount or file change
+    return () => {
+      isMounted = false;
+      if (cleanup) {
+        try {
+          cleanup();
+        } catch (err) {
+          console.error("Cleanup error:", err);
+        }
+      }
+    };
+  }, [roomId, file?.fileId, file?.language, currentUser?.userId]);
+
+  if (!file) {
+    return (
+      <div className="h-full flex items-center justify-center text-neutral-500">
+        Open a file to start coding
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-4">
+        <div className="text-red-500">{error}</div>
+        <button
+          onClick={() => {
+            setError(null);
+            window.location.reload();
+          }}
+          className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded text-white"
+        >
+          Reload Page
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full w-full">
+      <Editor
+        height="100%"
+        theme="vs-dark"
+        language={file.language}
+        onMount={handleEditorMount}
+        options={{
+          minimap: { enabled: false },
+          automaticLayout: true,
+          fontSize: 14,
+          lineNumbers: "on",
+          scrollBeyondLastLine: false,
+          wordWrap: "on",
+          tabSize: 2,
+          // Disable features that can cause conflicts
+          quickSuggestions: false,
+          suggestOnTriggerCharacters: false,
+          acceptSuggestionOnCommitCharacter: false,
+          tabCompletion: "off",
+          wordBasedSuggestions: "off",
+          // Prevent rendering issues
+          smoothScrolling: true,
+          cursorSmoothCaretAnimation: "off",
+        }}
+      />
+    </div>
+  );
+}./editor/language.ts
+
+
+/* ===============================
+   FILE: ./editor/language.ts
+=============================== */
+
+
+export function getLanguageFromFilename(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase();
+
+  switch (ext) {
+    case "ts":
+    case "tsx":
+      return "typescript";
+    case "js":
+    case "jsx":
+      return "javascript";
+    case "json":
+      return "json";
+    case "md":
+      return "markdown";
+    case "html":
+      return "html";
+    case "css":
+      return "css";
+    case "py":
+      return "python";
+    case "yml":
+    case "yaml":
+      return "yaml";
+    default:
+      return "plaintext";
+  }
+}
+./terminal/terminal.types.ts
+
+
+/* ===============================
+   FILE: ./terminal/terminal.types.ts
+=============================== */
+
+export type TerminalStatus = "idle" | "running" | "error" | "stopped";
+
+export interface TerminalSession {
+  id: string;
+  roomId: string;
+  ownerId: string;
+  status: TerminalStatus;
+}
+
+export interface TerminalLog {
+  timestamp: number;
+  message: string;
+  type: "stdout" | "stderr" | "system";
+}
+./terminal/terminal.store.ts
+
+
+/* ===============================
+   FILE: ./terminal/terminal.store.ts
+=============================== */
+
+/* ===============================
+   FILE: features/terminal/terminal.store.ts
+=============================== */
+
+import { create } from "zustand";
+
+export type TerminalStatus =
+  | "idle"
+  | "starting"
+  | "running"
+  | "stopped"
+  | "error";
+
+export interface TerminalSession {
+  id: string;
+  roomId: string;
+  status: TerminalStatus;
+}
+
+export interface TerminalLog {
+  id: string;
+  timestamp: number;
+  message: string;
+  type: "stdout" | "stderr" | "system";
+}
+
+interface TerminalState {
+  session: TerminalSession | null;
+  logs: TerminalLog[];
+
+  setSession: (session: TerminalSession | null) => void;
+  appendLog: (log: TerminalLog) => void;
+  clear: () => void;
+}
+
+export const useTerminalStore = create<TerminalState>((set) => ({
+  session: null,
+  logs: [],
+
+  setSession: (session) => set({ session }),
+
+  appendLog: (log) =>
+    set((state) => ({
+      logs: [...state.logs, log],
+    })),
+
+  clear: () =>
+    set({
+      session: null,
+      logs: [],
+    }),
+}));
+./terminal/terminal.service.ts
+
+
+/* ===============================
+   FILE: ./terminal/terminal.service.ts
+=============================== */
+
+import { getSocket } from "../collaboration/client/socket";
+
+const socket = getSocket();
+
+export function startTerminal(roomId: string) {
+  socket.emit("terminal:start", { roomId });
+}
+
+export function stopTerminal(roomId: string) {
+  socket.emit("terminal:stop", { roomId });
+}
+
+export function sendTerminalInput(roomId: string, input: string) {
+  socket.emit("terminal:input", { roomId, input });
+}
+./terminal/useTerminal.ts
+
+
+/* ===============================
+   FILE: ./terminal/useTerminal.ts
+=============================== */
+
+import { useTerminalStore } from "./terminal.store";
+import { startTerminal, stopTerminal, sendTerminalInput } from "./terminal.service";
+
+export function useTerminal(roomId: string) {
+  const { session, logs, clear } = useTerminalStore();
+
+  return {
+    session,
+    logs,
+    start: () => startTerminal(roomId),
+    stop: () => stopTerminal(roomId),
+    send: (input: string) => sendTerminalInput(roomId, input),
+    clear,
+  };
+}
+./terminal/TerminalPanel.tsx
+
+
+/* ===============================
+   FILE: ./terminal/TerminalPanel.tsx
+=============================== */
+
+"use client";
+
+import { useState } from "react";
+import { getSocket } from "@/features/collaboration/client/socket";
+import { useTerminalStore } from "./terminal.store";
+import { cn } from "@/lib/utils";
+
+export default function TerminalPanel({
+  roomId,
+}: {
+  roomId: string;
+}) {
+  const { session, logs } = useTerminalStore();
+  const [input, setInput] = useState("");
+
+  function start() {
+    getSocket().emit("terminal:start", { roomId });
+  }
+
+  function stop() {
+    getSocket().emit("terminal:stop", { roomId });
+  }
+
+  function send() {
+    if (!input.trim()) return;
+
+    getSocket().emit("terminal:input", {
+      roomId,
+      input,
+    });
+
+    setInput("");
+  }
+
+  return (
+    <div className="h-full bg-black text-green-400 font-mono text-sm">
+      {/* ---------- Header ---------- */}
+      <div className="flex items-center justify-between px-2 py-1 bg-neutral-900 text-white">
+        <span>Terminal</span>
+
+        {session?.status === "running" ? (
+          <button
+            onClick={stop}
+            className="text-red-400 hover:text-red-300"
+          >
+            Stop
+          </button>
+        ) : (
+          <button
+            onClick={start}
+            className="text-green-400 hover:text-green-300"
+          >
+            Run
+          </button>
+        )}
+      </div>
+
+
+      {/* ---------- Input ---------- */}
+      <input
+        className="bg-black text-white outline-none"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            send();
+          }
+        }}
+        placeholder="Enter command…"
+      />
+      
+      {/* ---------- Output ---------- */}
+      <div className="flex-1 overflow-auto p-2 space-y-1">
+        {logs.map((log) => (
+          <div
+            key={log.id}
+            className={cn(
+              log.type === "stderr" &&
+                "text-red-400",
+              log.type === "system" &&
+                "text-blue-400"
+            )}
+          >
+            {log.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+./terminal/terminal.handlers.ts
+
+
+/* ===============================
+   FILE: ./terminal/terminal.handlers.ts
+=============================== */
+
+import { eventBus } from "@/features/collaboration/client/event-bus";
+import { useTerminalStore } from "./terminal.store";
+import type { TerminalLog, TerminalSession } from "./terminal.store";
+
+/* ---------- Runtime validation ---------- */
+function isSession(p: unknown): p is TerminalSession {
+  if (!p || typeof p !== "object") return false;
+
+  const s = p as TerminalSession;
+
+  return (
+    typeof s.id === "string" &&
+    typeof s.roomId === "string" &&
+    typeof s.status === "string"
+  );
+}
+
+
+function isLog(p: any): p is TerminalLog {
+  return (
+    p &&
+    typeof p.id === "string" &&
+    typeof p.timestamp === "number" &&
+    typeof p.message === "string" &&
+    typeof p.type === "string"
+  );
+}
+
+/* ---------- Registration ---------- */
+
+export function registerTerminalHandlers(roomId: string) {
+  const store = useTerminalStore.getState();
+
+  const offSession = eventBus.on(
+    "terminal:session",
+    (payload) => {
+      if (!isSession(payload)) return;
+      if (payload.roomId !== roomId) return;
+
+      store.setSession(payload);
+    }
+  );
+
+  const offLog = eventBus.on(
+    "terminal:log",
+    (payload) => {
+      if (!isLog(payload)) return;
+      store.appendLog(payload);
+    }
+  );
+
+  const offLeave = eventBus.on(
+    "room:left",
+    () => {
+      store.clear();
+    }
+  );
+
+  return () => {
+    offSession();
+    offLog();
+    offLeave();
+  };
+}
+./tools/AiReview.tsx
+
+
+/* ===============================
+   FILE: ./tools/AiReview.tsx
+=============================== */
+
+"use client";
+
+import { AlertTriangle, Bug, ShieldCheck, Info, ArrowBigRight, ArrowRight } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { useEditorContext } from "@/state/editorContext";
+
+type ReviewItem = {
+  id: string;
+  severity: "error" | "warning" | "info";
+  category: "bug" | "security" | "performance" | "style";
+  message: string;
+  confidence: "low" | "medium" | "high";
+};
+
+const iconByCategory = {
+  bug: <Bug className="h-4 w-4 text-red-400" />,
+  security: <ShieldCheck className="h-4 w-4 text-amber-400" />,
+  performance: <AlertTriangle className="h-4 w-4 text-yellow-400" />,
+  style: <Info className="h-4 w-4 text-blue-400" />,
+};
+
+export default function AIReviewPanel() {
+  const [filter, setFilter] = useState<"all" | "error" | "warning" | "info">(
+    "all"
+  );
+  const [results, setResults] = useState<ReviewItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const { fileName, code, range } = useEditorContext();
+
+  const filtered = results.filter(
+    (i) => filter === "all" || i.severity === filter
+  );
+
+  const handleRunReview = async () => {
+    if (!fileName) return;
+
+    setLoading(true);
+    setResults([]);
+
+    try {
+      const res = await fetch("/api/ai/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scope: code ? "selection" : "file",
+          file: fileName,
+          language: "auto",
+          code: code ?? "",
+          range: range ?? null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.results)) {
+        // normalize AI output
+        setResults(
+          data.results.map((r: any, index: number) => ({
+            id: `${index}`,
+            severity: r.severity,
+            category: r.category,
+            message: r.message,
+            confidence: r.confidence,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("AI Review failed", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const canReview = Boolean(fileName);
+
+  return (
+    <div className="flex flex-col">
+
+        {/* Selection Context */}
+        {code && range && fileName && (
+          <div className="flex flex-col">
+  
+          <div className="px-3 py-2 text-xs bg-neutral-900 text-neutral-400">
+            Reviewing selection in{" "}
+            <span className="text-neutral-200">{fileName}</span>
+            <br />
+            Lines {range.startLine}–{range.endLine}
+          </div>
+          <div className="m-2">
+  
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleRunReview}
+              disabled={!canReview || loading}
+            >
+              {loading ? "Reviewing…" : code ? "Review Selection" : "Review File"}
+          <ArrowRight/>
+            </Button>
+          </div>
+            </div>
+        )}
+      {/* Filters */}
+      {code && range && fileName && (
+      <div className="px-2 py-2 flex gap-1 border-b border-t  border-neutral-800">
+        {(["all", "error", "warning", "info"] as const).map((f) => (
+          <button
+          key={f}
+          onClick={() => setFilter(f)}
+          className={`px-2 py-1 text-xs rounded
+            ${
+              filter === f
+              ? "bg-neutral-700 text-white"
+              : "text-neutral-400 hover:bg-neutral-800"
+            }`}
+            >
+            {f.toUpperCase()}
+          </button>
+          
+        ))}
+      </div>
+      )}
+      
+      {/* Review List */}
+      <ScrollArea className="flex-1">
+        <div className="p-2 space-y-2">
+          {!fileName && (
+            <div className="text-sm text-neutral-500 text-center py-4">
+              Open a file to run AI review.
+            </div>
+          )}
+
+          {fileName &&
+            filtered.map((item) => (
+              <div
+                key={item.id}
+                className="group rounded-md bg-neutral-900/50 p-3 border border-neutral-800 hover:border-neutral-700 transition"
+              >
+                <div className="flex gap-2">
+                  {iconByCategory[item.category]}
+
+                  <div className="flex-1">
+                    <p className="text-sm text-neutral-200">{item.message}</p>
+
+                    <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
+                      <Badge variant="outline" className=" text-[10px]">
+                        {item.confidence} confidence
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-2 hidden group-hover:flex gap-2">
+                  <Button size="sm" variant="outline">
+                    Explain
+                  </Button>
+                  <Button size="sm">Apply Fix</Button>
+                </div>
+              </div>
+            ))}
+
+          {fileName && !loading && filtered.length === 0 && (
+            <div className="text-sm text-neutral-500 text-center py-6">
+              No issues found.
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+./auth/getServerAuth.ts
+
+
+/* ===============================
+   FILE: ./auth/getServerAuth.ts
+=============================== */
+
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+
+export async function getServerAuth() {
+  return getServerSession(authOptions);
+}
+./features.txt
+
+
+/* ===============================
+   FILE: ./features.txt
+=============================== */
+

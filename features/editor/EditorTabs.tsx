@@ -33,10 +33,10 @@ export default function EditorTabs() {
           <div
             key={file.fileId}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border-r border-neutral-800 min-w-fit",
+              "flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border border-neutral-800 min-w-fit",
               "hover:bg-neutral-800 transition-colors",
-              isActive
-                ? "bg-neutral-800 text-white"
+              isActive  
+                ? "bg-neutral-80  0 text-white rounded"
                 : "text-neutral-400"
             )}
             onClick={() => setActiveFile(file.fileId)}

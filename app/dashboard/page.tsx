@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { createRoom } from "@/features/rooms/room.actions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,26 +52,18 @@ export default function DashboardPage() {
 
   /* ---------- Actions ---------- */
 
-  async function handleCreateRoom() {
-  const res = await fetch("/api/room/create", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: projectName, 
-    }),
-  });
 
-  if (!res.ok) {
-    // handle error if needed
-    return;
-  }
+async function handleCreateRoom() {
+  if (!session?.user?.id) return;
 
-  const { roomId } = await res.json();
+  const roomId = await createRoom(
+    projectName.trim(),
+    session.user.id
+  );
 
   router.push(`/room/${roomId}`);
 }
+
 
 
   function handleJoinRoom() {

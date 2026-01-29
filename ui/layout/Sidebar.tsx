@@ -6,17 +6,32 @@ import type { SidebarView } from "./layout.types";
 import FileTree from "@/features/filesystem/FileTree";
 import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
 import { createNode } from "@/features/collaboration/filesystem/fs.action";
-import { FilePlus, FolderPlus, RefreshCcw } from "lucide-react";
+import { useRoomStore } from "@/features/rooms/room.store";
+
+import {
+  FilePlus,
+  FolderPlus,
+  RefreshCcw,
+} from "lucide-react";
 
 interface SidebarProps {
   roomId: string;
   view: SidebarView;
-  projectName: string;
 }
 
-export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
+export default function Sidebar({ roomId, view }: SidebarProps) {
+  const room = useRoomStore((s) => s.room);
   const usersMap = usePresenceStore((s) => s.users);
   const users = Object.values(usersMap);
+
+  // Defensive guard (RoomGuard should handle this, but be safe)
+  if (!room) {
+    return (
+      <div className="h-full flex items-center justify-center text-neutral-500">
+        Loading…
+      </div>
+    );
+  }
 
   const handleCreateFile = () => {
     const name = prompt("File name", "new-file.ts");
@@ -24,7 +39,7 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
 
     createNode({
       roomId,
-      parentId: null, // Explicitly pass null for root
+      parentId: null,
       name,
       type: "file",
     });
@@ -36,7 +51,7 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
 
     createNode({
       roomId,
-      parentId: null, // Explicitly pass null for root
+      parentId: null,
       name,
       type: "folder",
     });
@@ -53,8 +68,8 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
       {view === "explorer" && (
         <>
           <div className="flex items-center justify-between px-2 py-1">
-            <span className="text-xs font-semibold uppercase text-neutral-400">
-              {projectName}
+            <span className="text-xs font-semibold uppercase text-neutral-400 truncate">
+              {room.name}
             </span>
 
             <div className="flex gap-1">
@@ -86,12 +101,16 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
 
       {/* Git */}
       {view === "git" && (
-        <div className="p-3 text-neutral-500">Git coming soon…</div>
+        <div className="p-3 text-neutral-500">
+          Git coming soon…
+        </div>
       )}
 
       {/* Run */}
       {view === "run" && (
-        <div className="p-3 text-neutral-500">Run configs coming soon…</div>
+        <div className="p-3 text-neutral-500">
+          Run configs coming soon…
+        </div>
       )}
 
       {/* Collaboration */}
@@ -100,8 +119,12 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
           <div className="text-xs text-neutral-400 mb-2">
             {users.length} user{users.length !== 1 ? "s" : ""} online
           </div>
+
           {users.map((u) => (
-            <div key={u.userId} className="flex items-center gap-2">
+            <div
+              key={u.userId}
+              className="flex items-center gap-2"
+            >
               <span
                 className="w-2 h-2 rounded-full flex-shrink-0"
                 style={{ backgroundColor: u.color }}
@@ -117,7 +140,9 @@ export default function Sidebar({ roomId, view,projectName }: SidebarProps) {
 
       {/* Settings */}
       {view === "settings" && (
-        <div className="p-3 text-neutral-500">Settings coming soon…</div>
+        <div className="p-3 text-neutral-500">
+          Settings coming soon…
+        </div>
       )}
     </div>
   );
