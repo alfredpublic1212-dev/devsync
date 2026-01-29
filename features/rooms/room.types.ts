@@ -11,5 +11,5 @@ export interface RoomMember {
 
 export interface RoomSnapshot {
   roomId: string;
-  tree: any[]; // FSNode[] comes from filesystem feature
+  tree: any[]; // FSNode[] from filesystem feature
 }

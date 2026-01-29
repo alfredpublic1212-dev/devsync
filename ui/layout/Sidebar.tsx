@@ -17,21 +17,12 @@ import {
 interface SidebarProps {
   roomId: string;
   view: SidebarView;
+  projectName?: string;
 }
 
-export default function Sidebar({ roomId, view }: SidebarProps) {
-  const room = useRoomStore((s) => s.room);
+export default function Sidebar({ roomId, view, projectName }: SidebarProps) {
   const usersMap = usePresenceStore((s) => s.users);
   const users = Object.values(usersMap);
-
-  // Defensive guard (RoomGuard should handle this, but be safe)
-  if (!room) {
-    return (
-      <div className="h-full flex items-center justify-center text-neutral-500">
-        Loading…
-      </div>
-    );
-  }
 
   const handleCreateFile = () => {
     const name = prompt("File name", "new-file.ts");
@@ -69,7 +60,7 @@ export default function Sidebar({ roomId, view }: SidebarProps) {
         <>
           <div className="flex items-center justify-between px-2 py-1">
             <span className="text-xs font-semibold uppercase text-neutral-400 truncate">
-              {room.name}
+              {projectName || "Project"}
             </span>
 
             <div className="flex gap-1">

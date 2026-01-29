@@ -1,6 +1,11 @@
+/* ===============================
+   FILE: RoomShell.tsx
+=============================== */
+
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import {
   ResizablePanelGroup,
@@ -18,26 +23,34 @@ import EditorTabs from "@/features/editor/EditorTabs";
 import CodeEditor from "@/features/editor/CodeEditor";
 
 import { SidebarView } from "@/ui/layout/layout.types";
-import { useRoomStore } from "@/features/rooms/room.store";
-import { Loader2 } from "lucide-react";
+import { useRoomStore } from "./room.store";
 
-interface RoomShellClientProps {
+interface RoomShellProps {
   roomId: string;
 }
 
-export default function RoomShellClient({ roomId }: RoomShellClientProps) {
+export default function RoomShell({ roomId }: RoomShellProps) {
+  const room = useRoomStore((s) => s.room);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
-  const [sidebarView, setSidebarView] = useState<SidebarView>("explorer");
+  const [sidebarView, setSidebarView] =
+    useState<SidebarView>("explorer");
 
-  // RoomGuard guarantees this, but keep defensive check
+  // ✅ Defensive guard (RoomGuard should already ensure this)
+  if (!room) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="animate-spin text-neutral-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
       <Header
-        title={"Devsync"}
+        title={room.name}
         roomId={roomId}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onToggleBottomPanel={() => setBottomOpen((v) => !v)}
@@ -45,41 +58,36 @@ export default function RoomShellClient({ roomId }: RoomShellClientProps) {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="flex-1"
-          autoSaveId={`room-${roomId}-horizontal`}
-        >
-          <ActivityBar active={sidebarView} onSelect={setSidebarView} />
+        <ResizablePanelGroup direction="horizontal" className="flex-1">
+          <ActivityBar
+            active={sidebarView}
+            onSelect={setSidebarView}
+          />
 
           {sidebarOpen && (
             <>
               <ResizablePanel defaultSize={18} maxSize={25}>
-                <Sidebar view={sidebarView} roomId={roomId} />
+                <Sidebar
+                  view={sidebarView}
+                  roomId={roomId}
+                  projectName={room.name}
+                />
               </ResizablePanel>
               <ResizableHandle />
             </>
           )}
 
           <ResizablePanel minSize={40}>
-            <ResizablePanelGroup
-              direction="vertical"
-              className="h-full"
-              autoSaveId={`room-${roomId}-vertical`}
-            >
+            <ResizablePanelGroup direction="vertical" className="h-full">
               <ResizablePanel minSize={40}>
-                <div className="flex flex-col h-full min-h-0">
-                  <EditorTabs />
-                  <div className="flex-1 min-h-0">
-                    <CodeEditor roomId={roomId} />
-                  </div>
-                </div>
+                <EditorTabs />
+                <CodeEditor roomId={roomId} />
               </ResizablePanel>
 
               {bottomOpen && (
                 <>
                   <ResizableHandle />
-                  <ResizablePanel defaultSize={25} maxSize={50}>
+                  <ResizablePanel defaultSize={25}>
                     <BottomPanel roomId={roomId} />
                   </ResizablePanel>
                 </>
@@ -90,7 +98,7 @@ export default function RoomShellClient({ roomId }: RoomShellClientProps) {
           {toolsOpen && (
             <>
               <ResizableHandle />
-              <ResizablePanel defaultSize={22} maxSize={30}>
+              <ResizablePanel defaultSize={22}>
                 <ToolsPanel roomId={roomId} />
               </ResizablePanel>
             </>
