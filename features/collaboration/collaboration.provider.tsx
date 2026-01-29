@@ -17,8 +17,10 @@ interface CollaborationProviderProps {
 /**
  * Authoritative collaboration lifecycle owner
  *
- * IMPORTANT:
- * - Avoid disconnect during initial StrictMode unmount
+ * Guarantees:
+ * - Snapshot is never missed
+ * - StrictMode safe
+ * - Handlers registered exactly once
  */
 export default function CollaborationProvider({
   roomId,
@@ -26,6 +28,10 @@ export default function CollaborationProvider({
   children,
 }: CollaborationProviderProps) {
   const joinedRef = useRef(false);
+  const handlersRegisteredRef = useRef(false);
+
+  // ✅ IMPORTANT: subscribe FIRST
+  useRoomSnapshot(roomId);
 
   useEffect(() => {
     connect(roomId, userId);
@@ -36,6 +42,9 @@ export default function CollaborationProvider({
 
     const offSnapshot = eventBus.on("room:snapshot", (payload) => {
       if (payload.roomId !== roomId) return;
+      if (handlersRegisteredRef.current) return;
+
+      handlersRegisteredRef.current = true;
 
       unregisterPresence = registerPresenceHandlers(roomId);
       unregisterFS = registerFSHandlers(roomId);
@@ -43,18 +52,20 @@ export default function CollaborationProvider({
 
     return () => {
       offSnapshot();
-      unregisterPresence?.();
-      unregisterFS?.();
 
-      // ONLY disconnect if we actually joined
+      if (handlersRegisteredRef.current) {
+        unregisterPresence?.();
+        unregisterFS?.();
+        handlersRegisteredRef.current = false;
+      }
+
+      // ✅ StrictMode-safe disconnect
       if (joinedRef.current) {
         disconnect(roomId);
         joinedRef.current = false;
       }
     };
   }, [roomId, userId]);
-
-  useRoomSnapshot(roomId);
 
   return <>{children}</>;
 }
