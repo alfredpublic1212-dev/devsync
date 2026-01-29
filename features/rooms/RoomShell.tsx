@@ -26,7 +26,6 @@ interface RoomShellClientProps {
 }
 
 export default function RoomShellClient({ roomId }: RoomShellClientProps) {
-  const room = useRoomStore((s) => s.room);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
@@ -34,21 +33,11 @@ export default function RoomShellClient({ roomId }: RoomShellClientProps) {
   const [sidebarView, setSidebarView] = useState<SidebarView>("explorer");
 
   // RoomGuard guarantees this, but keep defensive check
-  if (!room) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-900">
-        <Loader2 className="h-6 w-6 animate-spin text-neutral-600 dark:text-neutral-400 mb-2" />
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Loading room…
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
       <Header
-        title={room.name}
+        title={"Devsync"}
         roomId={roomId}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
         onToggleBottomPanel={() => setBottomOpen((v) => !v)}
