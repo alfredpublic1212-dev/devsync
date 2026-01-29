@@ -1,6 +1,12 @@
+"use client";
+
 import { useRoomStore } from "./room.store";
 
-export function RoomGuard({ children }: { children: React.ReactNode }) {
+export function RoomGuard({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const isReady = useRoomStore((s) => s.isReady);
 
   if (!isReady) {
