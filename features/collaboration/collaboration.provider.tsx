@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { connect, disconnect } from "./client/connection";
 import { eventBus } from "./client/event-bus";
 
 import { registerPresenceHandlers } from "./presence/presence.handlers";
 import { registerFSHandlers } from "./filesystem/fs.handlers";
+import { useRoomSnapshot } from "../rooms/room.hooks";
 
 interface CollaborationProviderProps {
   roomId: string;
@@ -15,14 +16,20 @@ interface CollaborationProviderProps {
 
 /**
  * Authoritative collaboration lifecycle owner
+ *
+ * IMPORTANT:
+ * - Avoid disconnect during initial StrictMode unmount
  */
 export default function CollaborationProvider({
   roomId,
   userId,
   children,
 }: CollaborationProviderProps) {
+  const joinedRef = useRef(false);
+
   useEffect(() => {
     connect(roomId, userId);
+    joinedRef.current = true;
 
     let unregisterPresence: (() => void) | null = null;
     let unregisterFS: (() => void) | null = null;
@@ -38,9 +45,16 @@ export default function CollaborationProvider({
       offSnapshot();
       unregisterPresence?.();
       unregisterFS?.();
-      disconnect(roomId);
+
+      // ONLY disconnect if we actually joined
+      if (joinedRef.current) {
+        disconnect(roomId);
+        joinedRef.current = false;
+      }
     };
   }, [roomId, userId]);
+
+  useRoomSnapshot(roomId);
 
   return <>{children}</>;
 }
