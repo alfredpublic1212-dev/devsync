@@ -25,16 +25,13 @@ interface RoomShellClientProps {
   roomId: string;
 }
 
-export default function RoomShellClient({
-  roomId,
-}: RoomShellClientProps) {
+export default function RoomShellClient({ roomId }: RoomShellClientProps) {
   const room = useRoomStore((s) => s.room);
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
   const [toolsOpen, setToolsOpen] = useState(true);
-  const [sidebarView, setSidebarView] =
-    useState<SidebarView>("explorer");
+  const [sidebarView, setSidebarView] = useState<SidebarView>("explorer");
 
   // RoomGuard guarantees this, but keep defensive check
   if (!room) {
@@ -64,18 +61,12 @@ export default function RoomShellClient({
           className="flex-1"
           autoSaveId={`room-${roomId}-horizontal`}
         >
-          <ActivityBar
-            active={sidebarView}
-            onSelect={setSidebarView}
-          />
+          <ActivityBar active={sidebarView} onSelect={setSidebarView} />
 
           {sidebarOpen && (
             <>
               <ResizablePanel defaultSize={18} maxSize={25}>
-                <Sidebar
-                  view={sidebarView}
-                  roomId={roomId}
-                />
+                <Sidebar view={sidebarView} roomId={roomId} />
               </ResizablePanel>
               <ResizableHandle />
             </>
