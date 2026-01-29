@@ -8,9 +8,9 @@ import { RoomGuard } from "@/features/rooms/room.guard";
 export default async function RoomPage({
   params,
 }: {
-  params: { roomId: string };
+  params: Promise<{ roomId: string }>;
 }) {
-  const { roomId } = params;
+  const { roomId } = await params;
 
   if (!roomId) redirect("/dashboard");
 
