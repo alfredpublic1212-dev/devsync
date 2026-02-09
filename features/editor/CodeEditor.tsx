@@ -1,11 +1,10 @@
-// features/editor/CodeEditor.tsx
-
 "use client";
 
 import Editor, { OnMount } from "@monaco-editor/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Awareness } from "y-protocols/awareness";
 import * as monaco from "monaco-editor";
+import { useSession } from "next-auth/react";
 
 import { getYDoc } from "@/features/collaboration/editor/yjs";
 import { bindMonacoToYText } from "@/features/collaboration/editor/monaco-yjs";
@@ -14,21 +13,29 @@ import { setupAwareness } from "@/features/collaboration/editor/yjs-awareness";
 import { bindAwarenessToMonaco } from "@/features/collaboration/editor/monaco-awareness";
 import { renderRemoteCursors } from "@/features/collaboration/editor/render-cursors";
 import { hasRoomSnapshot } from "@/features/collaboration/client/connection";
+import { eventBus } from "@/features/collaboration/client/event-bus";
 
 import { useEditorStore } from "@/features/collaboration/editor/editor.store";
 import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
+import { findCurrentPresenceUser } from "@/features/rooms/identity";
 
 interface CodeEditorProps {
   roomId: string;
 }
 
 export default function CodeEditor({ roomId }: CodeEditorProps) {
+  /* ---------- State ---------- */
   const activeFileId = useEditorStore((s) => s.activeFileId);
   const openFiles = useEditorStore((s) => s.openFiles);
   const users = usePresenceStore((s) => s.users);
+  const { data: session } = useSession();
 
   const file = activeFileId ? openFiles[activeFileId] : null;
-  const currentUser = Object.values(users).find((u) => u.online) ?? null;
+  const currentUser = useMemo(() => {
+    const fromSession = findCurrentPresenceUser(users, session?.user);
+    if (fromSession) return fromSession;
+    return Object.values(users).find((u) => u.online) ?? null;
+  }, [users, session?.user]);
 
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
@@ -44,6 +51,34 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
   >(new Map());
 
   const [error, setError] = useState<string | null>(null);
+  const [snapshotState, setSnapshotState] = useState(() => ({
+    roomId,
+    ready: hasRoomSnapshot(),
+  }));
+  const snapshotReady =
+    snapshotState.roomId === roomId
+      ? snapshotState.ready
+      : false;
+
+  useEffect(() => {
+    const offSnapshot = eventBus.on(
+      "room:snapshot",
+      (payload) => {
+        if (payload.roomId !== roomId) return;
+        setSnapshotState({ roomId, ready: true });
+      }
+    );
+
+    const offLeave = eventBus.on("room:left", ({ roomId: leftRoomId }) => {
+      if (leftRoomId !== roomId) return;
+      setSnapshotState({ roomId, ready: false });
+    });
+
+    return () => {
+      offSnapshot();
+      offLeave();
+    };
+  }, [roomId]);
 
   /* ---------- Editor mount ---------- */
   const handleEditorMount: OnMount = (editor, monacoInstance) => {
@@ -66,114 +101,114 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
     };
   }, []);
 
-  /* ---------- HARD GATE: wait for room snapshot ---------- */
-  if (!hasRoomSnapshot()) {
-    return (
-      <div className="h-full flex items-center justify-center text-neutral-500">
-        Syncing workspace…
-      </div>
-    );
-  }
-
-  /* ---------- No file selected ---------- */
-  if (!file) {
-    return (
-      <div className="h-full flex items-center justify-center text-neutral-500">
-        Open a file to start coding
-      </div>
-    );
-  }
-
-  /* ---------- Collaboration setup per file ---------- */
+  /* ---------- Collaboration setup (ALWAYS CALLED) ---------- */
   useEffect(() => {
+    // 🔒 HARD guards INSIDE effect
+    if (
+      !snapshotReady ||
+      !file ||
+      !currentUser ||
+      !editorRef.current ||
+      !monacoRef.current
+    ) {
+      return;
+    }
+
     const editor = editorRef.current;
     const monacoInstance = monacoRef.current;
 
-    if (!editor || !monacoInstance || !currentUser || !file) return;
+    let isMounted = true;
+    let cleanup: (() => void) | undefined;
 
     setError(null);
 
-    let isMounted = true;
-    let cleanup: (() => void) | null = null;
+    try {
+      /* ---------- Model ---------- */
+      let entry = modelsRef.current.get(file.fileId);
 
-    const setup = async () => {
-      try {
-        /* ---------- Model ---------- */
-        let entry = modelsRef.current.get(file.fileId);
-
-        if (!entry) {
-          const model = monacoInstance.editor.createModel(
-            "",
-            file.language
-          );
-          entry = { model };
-          modelsRef.current.set(file.fileId, entry);
-        } else if (entry.model.getLanguageId() !== file.language) {
-          monacoInstance.editor.setModelLanguage(
-            entry.model,
-            file.language
-          );
-        }
-
-        const model = entry.model;
-        if (model.isDisposed()) return;
-
-        entry.cleanup?.();
-
-        editor.setModel(model);
-
-        /* ---------- Yjs ---------- */
-        const doc = getYDoc(roomId, file.fileId);
-        const ytext = doc.getText("content");
-
-        const unbindText = bindMonacoToYText(model, ytext);
-        const unbindTransport = bindYjsToSocket(
-          doc,
-          roomId,
-          file.fileId
-        );
-
-        /* ---------- Awareness ---------- */
-        const awareness = new Awareness(doc);
-        awareness.setLocalState({
-          user: {
-            userId: currentUser.userId,
-            name: currentUser.name,
-            color: currentUser.color,
-          },
-          cursor: null,
-        });
-
-        setupAwareness(awareness, roomId, file.fileId);
-        bindAwarenessToMonaco(editor, awareness);
-
-        /* ---------- Cursor rendering ---------- */
-        const interval = setInterval(() => {
-          if (isMounted) renderRemoteCursors(editor, awareness);
-        }, 100);
-
-        cleanup = () => {
-          isMounted = false;
-          clearInterval(interval);
-          awareness.destroy();
-          unbindTransport();
-          unbindText();
-        };
-
-        entry.cleanup = cleanup;
-      } catch (err) {
-        console.error("Editor setup failed", err);
-        if (isMounted) setError("Failed to setup collaboration");
+      if (!entry) {
+        const model = monacoInstance.editor.createModel("", file.language);
+        entry = { model };
+        modelsRef.current.set(file.fileId, entry);
+      } else if (entry.model.getLanguageId() !== file.language) {
+        monacoInstance.editor.setModelLanguage(entry.model, file.language);
       }
-    };
 
-    setup();
+      const model = entry.model;
+      if (model.isDisposed()) return;
+
+      if (editor.getModel() !== null && !(editor as any)._isDisposed) {
+        editor.setModel(model);
+      } else {
+        return;
+      }
+
+      /* ---------- Yjs ---------- */
+      const doc = getYDoc(roomId, file.fileId);
+      const ytext = doc.getText("content");
+
+      const unbindText = bindMonacoToYText(model, ytext);
+      const unbindTransport = bindYjsToSocket(doc, roomId, file.fileId);
+
+      /* ---------- Awareness ---------- */
+      const awareness = new Awareness(doc);
+      awareness.setLocalState({
+        user: {
+          userId: currentUser.userId,
+          name: currentUser.name,
+          color: currentUser.color,
+        },
+        cursor: null,
+      });
+
+      const unbindAwareness = setupAwareness(
+        awareness,
+        roomId,
+        file.fileId
+      );
+      bindAwarenessToMonaco(editor, awareness);
+
+      /* ---------- Cursor rendering ---------- */
+      const interval = setInterval(() => {
+        if (isMounted) {
+          renderRemoteCursors(editor, awareness);
+        }
+      }, 100);
+
+      let disposed = false;
+      cleanup = () => {
+        if (disposed) return;
+        disposed = true;
+        isMounted = false;
+        clearInterval(interval);
+        unbindAwareness();
+        awareness.destroy();
+        unbindTransport();
+        unbindText();
+
+        const latest = modelsRef.current.get(file.fileId);
+        if (latest && latest.cleanup === cleanup) {
+          latest.cleanup = undefined;
+        }
+      };
+
+      entry.cleanup = cleanup;
+    } catch (err) {
+      console.error("Editor setup failed", err);
+      if (isMounted) setError("Failed to setup collaboration");
+    }
 
     return () => {
       isMounted = false;
       cleanup?.();
     };
-  }, [roomId, file.fileId, file.language, currentUser?.userId]);
+  }, [
+    roomId,
+    snapshotReady,
+    file?.fileId,
+    file?.language,
+    currentUser?.userId,
+  ]);
 
   /* ---------- Error ---------- */
   if (error) {
@@ -186,6 +221,14 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
         >
           Reload Page
         </button>
+      </div>
+    );
+  }
+
+  if (!file) {
+    return (
+      <div className="h-full flex items-center justify-center text-neutral-500">
+        Open a file to start coding
       </div>
     );
   }
