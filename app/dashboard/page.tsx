@@ -64,7 +64,9 @@ async function handleCreateRoom() {
 
     router.push(`/room/${roomId}`);
   } catch (err) {
-    console.error("Room creation failed", err);
+    const message =
+      err instanceof Error ? err.message : "Unknown room creation error";
+    console.error("Room creation failed:", message, err);
   }
 }
 

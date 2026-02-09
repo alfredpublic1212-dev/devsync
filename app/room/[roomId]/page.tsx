@@ -3,11 +3,10 @@ import { getServerAuth } from "@/features/auth/getServerAuth";
 
 import CollaborationProvider from "@/features/collaboration/collaboration.provider";
 import RoomShellClient from "@/features/rooms/RoomShellClient";
-import { RoomGuard } from "@/features/rooms/room.guard";
 
 async function fetchRoom(roomId: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_WS_URL}/api/rooms/${roomId}`,
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/rooms/${roomId}`,
     { cache: "no-store" }
   );
 
@@ -31,16 +30,14 @@ export default async function RoomPage({
 
   return (
     <CollaborationProvider roomId={roomId} userId={session.user.id}>
-      <RoomGuard>
-        <RoomShellClient
-          roomId={roomId}
-          initialRoom={{
-            id: room.id,
-            name: room.name,
-            ownerId: room.ownerId,
-          }}
-        />
-      </RoomGuard>
+      <RoomShellClient
+        roomId={roomId}
+        initialRoom={{
+          id: room.id,
+          name: room.name,
+          ownerId: room.ownerId,
+        }}
+      />
     </CollaborationProvider>
   );
 }
