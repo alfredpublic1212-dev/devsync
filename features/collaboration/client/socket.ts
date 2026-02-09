@@ -2,6 +2,8 @@
 
 import { io, Socket } from "socket.io-client";
 
+const SOCKET_CONFIG_VERSION = 2;
+
 /**
  * We store the socket on `globalThis` to survive
  * Next.js Fast Refresh / HMR without duplicating connections.
@@ -9,6 +11,8 @@ import { io, Socket } from "socket.io-client";
 declare global {
   // eslint-disable-next-line no-var
   var __devsyncSocket: Socket | undefined;
+  // eslint-disable-next-line no-var
+  var __devsyncSocketVersion: number | undefined;
 }
 
 let socket: Socket | null = null;
@@ -22,15 +26,32 @@ export function getSocket(): Socket {
   }
 
   if (!socket) {
+    const wsUrl =
+      process.env.NEXT_PUBLIC_SOCKET_URL ??
+      process.env.NEXT_PUBLIC_WS_URL ??
+      process.env.NEXT_PUBLIC_BACKEND_URL ??
+      window.location.origin;
+
+    // Drop stale HMR socket when connection config changes.
+    if (
+      globalThis.__devsyncSocket &&
+      globalThis.__devsyncSocketVersion !== SOCKET_CONFIG_VERSION
+    ) {
+      globalThis.__devsyncSocket.disconnect();
+      globalThis.__devsyncSocket = undefined;
+    }
+
     socket =
       globalThis.__devsyncSocket ??
-      io(process.env.NEXT_PUBLIC_WS_URL!, {
-        transports: ["websocket"],
+      io(wsUrl, {
+        // Allow long-polling fallback for browsers/networks where direct WS fails.
+        transports: ["polling", "websocket"],
+        upgrade: true,
         autoConnect: false,
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 500,
-        timeout: 10000,
+        timeout: 20000,
 
         /**
          * Auth is transport-level metadata.
@@ -42,6 +63,9 @@ export function getSocket(): Socket {
       });
 
     globalThis.__devsyncSocket = socket;
+    globalThis.__devsyncSocketVersion = SOCKET_CONFIG_VERSION;
+
+    console.log("🔌 Socket target:", wsUrl);
 
     /* ---------- Debug (optional but useful) ---------- */
     socket.on("connect", () => {
@@ -59,6 +83,27 @@ export function getSocket(): Socket {
        * Room rejoin is handled by `connection.ts`
        * via `connect()` → `room:join`
        */
+    });
+
+    socket.on("connect_error", (err) => {
+      const anyErr = err as Error & {
+        description?: unknown;
+        context?: unknown;
+        type?: string;
+        data?: unknown;
+      };
+
+      console.error("⚠️ Socket connect_error message:", anyErr?.message ?? String(err));
+      console.error("⚠️ Socket connect_error raw:", err);
+      console.error("⚠️ Socket connect_error details:", {
+        target: wsUrl,
+        type: anyErr?.type,
+        description: anyErr?.description,
+        context: anyErr?.context,
+        data: anyErr?.data,
+        connected: socket?.connected,
+        transport: socket?.io.engine?.transport?.name,
+      });
     });
   }
 

@@ -7,36 +7,35 @@ export function setupAwareness(
   fileId: string
 ) {
   const socket = getSocket();
+  let disposed = false;
+  const onAwarenessUpdate = ({
+    added,
+    updated,
+    removed,
+  }: {
+    added: number[];
+    updated: number[];
+    removed: number[];
+  }) => {
+    const changed = [...added, ...updated, ...removed];
 
-  /* ---------- local → server ---------- */
-  awareness.on(
-    "update",
-    ({
-      added,
-      updated,
-      removed,
-    }: {
-      added: number[];
-      updated: number[];
-      removed: number[];
-    }) => {
-      const changed = [...added, ...updated, ...removed];
+    for (const clientId of changed) {
+      const state = awareness.getStates().get(clientId) ?? null;
 
-      for (const clientId of changed) {
-        const state = awareness.getStates().get(clientId) ?? null;
-
-        socket.emit("awareness:update", {
-          roomId,
-          fileId,
-          clientId,
-          state,
-        });
-      }
+      socket.emit("awareness:update", {
+        roomId,
+        fileId,
+        clientId,
+        state,
+      });
     }
-  );
+  };
 
-  /* ---------- server → local ---------- */
-  socket.on("awareness:update", (payload) => {
+  const onSocketAwarenessUpdate = (payload: {
+    fileId: string;
+    clientId: number;
+    state: Record<string, any> | null;
+  }) => {
     if (payload.fileId !== fileId) return;
 
     const { clientId, state } = payload;
@@ -46,5 +45,18 @@ export function setupAwareness(
     } else {
       awareness.getStates().set(clientId, state);
     }
-  });
+  };
+
+  /* ---------- local → server ---------- */
+  awareness.on("update", onAwarenessUpdate);
+
+  /* ---------- server → local ---------- */
+  socket.on("awareness:update", onSocketAwarenessUpdate);
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    awareness.off("update", onAwarenessUpdate);
+    socket.off("awareness:update", onSocketAwarenessUpdate);
+  };
 }

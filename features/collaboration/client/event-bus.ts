@@ -10,10 +10,17 @@ import type {
 } from "@/features/terminal/terminal.store";
 
 import type { FSNode } from "@/features/collaboration/filesystem/fs.types";
+import type { Room, RoomMember } from "@/features/rooms/room.types";
+import type {
+  RoomErrorPayload,
+  RoomJoinRequestPayload,
+} from "./socket.contract";
 
 /* ---------- Room snapshot ---------- */
 export interface RoomSnapshot {
   roomId: string;
+  room: Room;
+  members: RoomMember[];
   tree: FSNode[];
 }
 
@@ -22,6 +29,8 @@ type EventMap = {
   "room:snapshot": RoomSnapshot;
   "room:joined": { roomId: string };
   "room:left": { roomId: string };
+  "room:error": RoomErrorPayload;
+  "room:join-request": RoomJoinRequestPayload;
 
   /* -------- Filesystem -------- */
   "fs:snapshot": {
@@ -47,7 +56,7 @@ type Handler<T> = (payload: T) => void;
 class EventBus {
   private listeners = new Map<
     keyof EventMap,
-    Set<Handler<any>>
+    Set<Handler<unknown>>
   >();
 
   on<K extends keyof EventMap>(
@@ -58,10 +67,11 @@ class EventBus {
       this.listeners.set(event, new Set());
     }
 
-    this.listeners.get(event)!.add(handler);
+    const castHandler = handler as unknown as Handler<unknown>;
+    this.listeners.get(event)!.add(castHandler);
 
     return () => {
-      this.listeners.get(event)?.delete(handler);
+      this.listeners.get(event)?.delete(castHandler);
     };
   }
 

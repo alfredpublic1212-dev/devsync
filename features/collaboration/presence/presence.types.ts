@@ -1,4 +1,5 @@
 export interface PresenceUser {
+  cursor: any;
   userId: string;
   name: string;
   color: string;

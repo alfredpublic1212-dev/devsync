@@ -2,10 +2,46 @@
 
 import { getSocket } from "./socket";
 import { eventBus } from "./event-bus";
+import {
+  toFSDeleteEventPayload,
+  toFSNodeEventPayload,
+  toFSSnapshotPayload,
+  toPresenceLeavePayload,
+  toPresenceSnapshotPayload,
+  toPresenceUserPayload,
+  toRoomErrorPayload,
+  toRoomJoinRequestPayload,
+  type RoomSnapshotPayload,
+} from "./socket.contract";
 
 let activeRoomId: string | null = null;
+let activeUserId: string | null = null;
 let isConnecting = false;
 let hasSnapshot = false;
+let listenersRegistered = false;
+
+function isRoomSnapshotPayload(payload: unknown): payload is RoomSnapshotPayload {
+  if (!payload || typeof payload !== "object") return false;
+  const candidate = payload as Partial<RoomSnapshotPayload>;
+
+  return (
+    typeof candidate.roomId === "string" &&
+    !!candidate.room &&
+    Array.isArray(candidate.members) &&
+    Array.isArray(candidate.tree)
+  );
+}
+
+function emitJoinIfReady() {
+  const socket = getSocket();
+  if (!socket.connected || !activeRoomId || !activeUserId) return;
+  hasSnapshot = false;
+
+  socket.emit("room:join", {
+    roomId: activeRoomId,
+    userId: activeUserId,
+  });
+}
 
 export function connect(roomId: string, userId: string) {
   if (isConnecting) return;
@@ -15,27 +51,24 @@ export function connect(roomId: string, userId: string) {
 
   const socket = getSocket();
   activeRoomId = roomId;
+  activeUserId = userId;
 
   if (!socket.connected) {
     socket.connect();
   }
 
-  /* ---------- Connect ---------- */
-  if (!socket.hasListeners("connect")) {
+  if (!listenersRegistered) {
+    listenersRegistered = true;
+
+    /* ---------- Connect ---------- */
     socket.on("connect", () => {
       console.log("✅ Socket connected:", socket.id);
-      if (activeRoomId) {
-        socket.emit("room:join", {
-          roomId: activeRoomId,
-          userId,
-        });
-      }
+      emitJoinIfReady();
     });
-  }
 
-  /* ---------- Room snapshot (CRITICAL) ---------- */
-  if (!socket.hasListeners("room:snapshot")) {
-    socket.on("room:snapshot", (payload) => {
+    /* ---------- Room snapshot (CRITICAL) ---------- */
+    socket.on("room:snapshot", (payload: unknown) => {
+      if (!isRoomSnapshotPayload(payload)) return;
       console.log("✅ Room snapshot received", payload);
 
       if (payload.roomId !== activeRoomId) return;
@@ -50,73 +83,105 @@ export function connect(roomId: string, userId: string) {
         roomId: payload.roomId,
       });
     });
-  }
 
-  /* ---------- Disconnect ---------- */
-  if (!socket.hasListeners("disconnect")) {
+    socket.on("room:error", (payload: unknown) => {
+      const roomError = toRoomErrorPayload(payload);
+      if (roomError.roomId && roomError.roomId !== activeRoomId) return;
+
+      const joinRequest = toRoomJoinRequestPayload(payload);
+      if (
+        joinRequest &&
+        joinRequest.roomId === activeRoomId &&
+        roomError.code?.toLowerCase().includes("join_request")
+      ) {
+        eventBus.emit("room:join-request", joinRequest);
+        return;
+      }
+
+      hasSnapshot = false;
+      eventBus.emit("room:error", roomError);
+    });
+
+    socket.on("room:join-request", (payload: unknown) => {
+      const request = toRoomJoinRequestPayload(payload);
+      if (!request) return;
+      if (request.roomId !== activeRoomId) return;
+
+      eventBus.emit("room:join-request", request);
+    });
+
+    /* ---------- Disconnect ---------- */
     socket.on("disconnect", (reason) => {
       console.log("❌ Socket disconnected:", reason);
       isConnecting = false;
       hasSnapshot = false;
     });
-  }
 
-  if (!socket.hasListeners("connect_error")) {
     socket.on("connect_error", (err) => {
       console.error("❌ Connection error:", err);
       isConnecting = false;
       hasSnapshot = false;
     });
-  }
 
-  /* ---------- Filesystem ---------- */
-  if (!socket.hasListeners("fs:snapshot")) {
-    socket.on("fs:snapshot", (p) => {
-      eventBus.emit("fs:snapshot", p);
+    /* ---------- Filesystem ---------- */
+    socket.on("fs:snapshot", (p: unknown) => {
+      const snapshot = toFSSnapshotPayload(p);
+      if (!snapshot) return;
+      if (snapshot.roomId !== activeRoomId) return;
+
+      eventBus.emit("fs:snapshot", snapshot);
     });
-  }
 
-  if (!socket.hasListeners("fs:create")) {
-    socket.on("fs:create", (p) => {
-      eventBus.emit("fs:create", p);
+    socket.on("fs:create", (p: unknown) => {
+      const created = toFSNodeEventPayload(p);
+      if (!created) return;
+      if (created.roomId && created.roomId !== activeRoomId) return;
+
+      eventBus.emit("fs:create", created.node);
     });
-  }
 
-  if (!socket.hasListeners("fs:rename")) {
-    socket.on("fs:rename", (p) => {
-      eventBus.emit("fs:rename", p);
+    socket.on("fs:rename", (p: unknown) => {
+      const renamed = toFSNodeEventPayload(p);
+      if (!renamed) return;
+      if (renamed.roomId && renamed.roomId !== activeRoomId) return;
+
+      eventBus.emit("fs:rename", renamed.node);
     });
-  }
 
-  if (!socket.hasListeners("fs:delete")) {
-    socket.on("fs:delete", (p) => {
-      eventBus.emit("fs:delete", p);
+    socket.on("fs:delete", (p: unknown) => {
+      const del = toFSDeleteEventPayload(p);
+      if (!del) return;
+      eventBus.emit("fs:delete", { id: del.id });
     });
-  }
 
-  /* ---------- Presence ---------- */
-  if (!socket.hasListeners("presence:update")) {
-    socket.on("presence:update", (p) => {
-      eventBus.emit("presence:update", p);
+    /* ---------- Presence ---------- */
+    socket.on("presence:update", (p: unknown) => {
+      const snapshot = toPresenceSnapshotPayload(p);
+      if (!snapshot) return;
+      if (snapshot.roomId !== activeRoomId) return;
+
+      eventBus.emit("presence:update", snapshot);
     });
-  }
 
-  if (!socket.hasListeners("presence:join")) {
-    socket.on("presence:join", (p) => {
-      eventBus.emit("presence:join", p);
+    socket.on("presence:join", (p: unknown) => {
+      const joined = toPresenceUserPayload(p);
+      if (!joined) return;
+      if (joined.roomId && joined.roomId !== activeRoomId) return;
+
+      eventBus.emit("presence:join", joined.user);
     });
-  }
 
-  if (!socket.hasListeners("presence:leave")) {
-    socket.on("presence:leave", (p) => {
-      eventBus.emit("presence:leave", p);
+    socket.on("presence:leave", (p: unknown) => {
+      const left = toPresenceLeavePayload(p);
+      if (!left) return;
+      if (left.roomId && left.roomId !== activeRoomId) return;
+
+      eventBus.emit("presence:leave", { userId: left.userId });
     });
   }
 
   /* ---------- If already connected ---------- */
-  if (socket.connected) {
-    socket.emit("room:join", { roomId, userId });
-  }
+  emitJoinIfReady();
 
   isConnecting = false;
 }
@@ -129,6 +194,7 @@ export function disconnect(roomId: string) {
   }
 
   activeRoomId = null;
+  activeUserId = null;
   hasSnapshot = false;
 
   eventBus.emit("room:left", { roomId });

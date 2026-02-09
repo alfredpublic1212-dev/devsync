@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { connect, disconnect } from "./client/connection";
-import { eventBus } from "./client/event-bus";
 
 import { registerPresenceHandlers } from "./presence/presence.handlers";
 import { registerFSHandlers } from "./filesystem/fs.handlers";
@@ -29,37 +28,33 @@ export default function CollaborationProvider({
 }: CollaborationProviderProps) {
   const joinedRef = useRef(false);
   const handlersRegisteredRef = useRef(false);
+  const unregisterPresenceRef = useRef<(() => void) | null>(null);
+  const unregisterFSRef = useRef<(() => void) | null>(null);
 
-  // ✅ IMPORTANT: subscribe FIRST
+  // IMPORTANT: subscribe FIRST
   useRoomSnapshot(roomId);
 
   useEffect(() => {
+    // Register handlers before connect to avoid missing early fs/presence events.
+    if (!handlersRegisteredRef.current) {
+      unregisterPresenceRef.current = registerPresenceHandlers(roomId);
+      unregisterFSRef.current = registerFSHandlers(roomId);
+      handlersRegisteredRef.current = true;
+    }
+
     connect(roomId, userId);
     joinedRef.current = true;
 
-    let unregisterPresence: (() => void) | null = null;
-    let unregisterFS: (() => void) | null = null;
-
-    const offSnapshot = eventBus.on("room:snapshot", (payload) => {
-      if (payload.roomId !== roomId) return;
-      if (handlersRegisteredRef.current) return;
-
-      handlersRegisteredRef.current = true;
-
-      unregisterPresence = registerPresenceHandlers(roomId);
-      unregisterFS = registerFSHandlers(roomId);
-    });
-
     return () => {
-      offSnapshot();
-
       if (handlersRegisteredRef.current) {
-        unregisterPresence?.();
-        unregisterFS?.();
+        unregisterPresenceRef.current?.();
+        unregisterFSRef.current?.();
+        unregisterPresenceRef.current = null;
+        unregisterFSRef.current = null;
         handlersRegisteredRef.current = false;
       }
 
-      // ✅ StrictMode-safe disconnect
+      //  StrictMode-safe disconnect
       if (joinedRef.current) {
         disconnect(roomId);
         joinedRef.current = false;

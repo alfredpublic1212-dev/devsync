@@ -4,18 +4,38 @@ import type { FSSnapshot, FSNode } from "./fs.types";
 
 /* ---------- Runtime validation ---------- */
 
-function isNode(p: unknown): p is FSNode {
-  if (!p || typeof p !== "object") return false;
-  const n = p as FSNode;
+function toUpdatedAt(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return Date.now();
+}
 
-  return (
-    typeof n.id === "string" &&
-    typeof n.name === "string" &&
-    (n.type === "file" || n.type === "folder") &&
-    typeof n.path === "string" &&
-    typeof n.updatedAt === "number" &&
-    (typeof n.parentId === "string" || n.parentId === null)
-  );
+function toNode(p: unknown): FSNode | null {
+  if (!p || typeof p !== "object") return null;
+  const n = p as Partial<FSNode>;
+
+  if (
+    typeof n.id !== "string" ||
+    typeof n.name !== "string" ||
+    (n.type !== "file" && n.type !== "folder")
+  ) {
+    return null;
+  }
+
+  return {
+    id: n.id,
+    name: n.name,
+    type: n.type,
+    parentId:
+      typeof n.parentId === "string" || n.parentId === null
+        ? n.parentId
+        : null,
+    path: typeof n.path === "string" ? n.path : n.name,
+    updatedAt: toUpdatedAt(n.updatedAt),
+  };
 }
 
 function isSnapshot(p: unknown): p is FSSnapshot {
@@ -29,10 +49,14 @@ function isSnapshot(p: unknown): p is FSSnapshot {
 }
 
 function isDeletePayload(p: unknown): p is { id: string } {
+  const candidate: Record<string, unknown> | null =
+    p && typeof p === "object"
+      ? (p as Record<string, unknown>)
+      : null;
+
   return (
-    !!p &&
-    typeof p === "object" &&
-    typeof (p as any).id === "string"
+    !!candidate &&
+    typeof candidate.id === "string"
   );
 }
 
@@ -47,30 +71,46 @@ export function registerFSHandlers(roomId: string) {
       if (!isSnapshot(payload)) return;
       if (payload.roomId !== roomId) return;
 
-      const valid = payload.nodes.filter(isNode);
+      const valid = payload.nodes
+        .map((node) => toNode(node))
+        .filter((node): node is FSNode => node !== null);
+      store.setSnapshot(valid);
+    }
+  );
+
+  // Backend room snapshot already includes the authoritative file tree.
+  const offRoomSnapshot = eventBus.on(
+    "room:snapshot",
+    (payload) => {
+      if (payload.roomId !== roomId) return;
+      const valid = payload.tree
+        .map((node) => toNode(node))
+        .filter((node): node is FSNode => node !== null);
       store.setSnapshot(valid);
     }
   );
 
   const offCreate = eventBus.on(
     "fs:create",
-    (payload: unknown) => {
-      if (!isNode(payload)) return;
-      store.upsertNode(payload);
+    (payload) => {
+      const node = toNode(payload);
+      if (!node) return;
+      store.upsertNode(node);
     }
   );
 
   const offRename = eventBus.on(
     "fs:rename",
-    (payload: unknown) => {
-      if (!isNode(payload)) return;
-      store.upsertNode(payload);
+    (payload) => {
+      const node = toNode(payload);
+      if (!node) return;
+      store.upsertNode(node);
     }
   );
 
   const offDelete = eventBus.on(
     "fs:delete",
-    (payload: unknown) => {
+    (payload) => {
       if (!isDeletePayload(payload)) return;
       store.removeNode(payload.id);
     }
@@ -82,6 +122,7 @@ export function registerFSHandlers(roomId: string) {
 
   return () => {
     offSnapshot();
+    offRoomSnapshot();
     offCreate();
     offRename();
     offDelete();

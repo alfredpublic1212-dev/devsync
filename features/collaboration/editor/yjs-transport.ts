@@ -2,6 +2,7 @@
 
 import * as Y from "yjs";
 import { getSocket } from "@/features/collaboration/client/socket";
+import { toYjsUpdatePayload } from "@/features/collaboration/client/socket.contract";
 
 export function bindYjsToSocket(
   doc: Y.Doc,
@@ -10,79 +11,83 @@ export function bindYjsToSocket(
 ) {
   const socket = getSocket();
   let isSynced = false;
+  let destroyed = false;
+  let disposed = false;
+  
+  const emitJoin = () => {
+    if (destroyed) return;
+    isSynced = false;
+    socket.emit("yjs:join", { roomId, fileId });
+  };
 
   /* ---------- Local → Server ---------- */
-  const onLocalUpdate = (update: Uint8Array, origin: any) => {
-    // Don't send updates that came from the server
+  const onLocalUpdate = (update: Uint8Array, origin: unknown) => {
     if (origin === "server") return;
-    if (!isSynced) return; // Wait for initial sync
+    if (!isSynced) return;
 
     socket.emit("yjs:update", {
       roomId,
       fileId,
-      update: Array.from(update), // Convert to array for JSON serialization
+      update: Array.from(update),
     });
   };
 
   doc.on("update", onLocalUpdate);
 
   /* ---------- Server → Local ---------- */
-  const onRemoteUpdate = (payload: {
-    fileId: string;
-    update: number[] | Uint8Array;
-  }) => {
-    if (payload.fileId !== fileId) return;
+  const onRemoteUpdate = (payload: unknown) => {
+    if (destroyed) return;
+    const normalized = toYjsUpdatePayload(payload);
+    if (!normalized) return;
+    if (normalized.roomId !== roomId || normalized.fileId !== fileId) return;
 
-    try {
-      const update = 
-        payload.update instanceof Uint8Array 
-          ? payload.update 
-          : new Uint8Array(payload.update);
+    const update =
+      normalized.update instanceof Uint8Array
+        ? normalized.update
+        : new Uint8Array(normalized.update);
 
-      Y.applyUpdate(doc, update, "server");
-    } catch (err) {
-      console.error("Error applying remote Yjs update:", err);
-    }
+    Y.applyUpdate(doc, update, "server");
   };
 
   socket.on("yjs:update", onRemoteUpdate);
 
-  /* ---------- Initial sync ---------- */
-  const onInitialSync = (payload: { 
-    fileId: string; 
-    update: number[] | Uint8Array;
-  }) => {
-    if (payload.fileId !== fileId) return;
+  /* ---------- Initial Sync ---------- */
+  const onSync = (payload: unknown) => {
+    if (destroyed) return;
+    const normalized = toYjsUpdatePayload(payload);
+    if (!normalized) return;
+    if (normalized.roomId !== roomId || normalized.fileId !== fileId) return;
 
-    try {
-      const update = 
-        payload.update instanceof Uint8Array 
-          ? payload.update 
-          : new Uint8Array(payload.update);
+    const update =
+      normalized.update instanceof Uint8Array
+        ? normalized.update
+        : new Uint8Array(normalized.update);
 
-      Y.applyUpdate(doc, update, "server");
-      isSynced = true;
-    } catch (err) {
-      console.error("Error applying initial Yjs sync:", err);
-      isSynced = true; // Still mark as synced to allow local edits
-    }
+    Y.applyUpdate(doc, update, "server");
+    isSynced = true;
   };
 
-  socket.once("yjs:sync", onInitialSync);
+  socket.on("yjs:sync", onSync);
+  socket.on("connect", emitJoin);
 
-  // Request initial state
-  socket.emit("yjs:join", { roomId, fileId });
+  /* ---------- Join document ---------- */
+  emitJoin();
 
-  // Fallback: mark as synced after timeout
+  /* ---------- Failsafe ---------- */
   const syncTimeout = setTimeout(() => {
     isSynced = true;
-  }, 2000);
+  }, 1500);
 
   /* ---------- Cleanup ---------- */
   return () => {
+    if (disposed) return;
+    disposed = true;
+    destroyed = true;
     clearTimeout(syncTimeout);
+
     doc.off("update", onLocalUpdate);
     socket.off("yjs:update", onRemoteUpdate);
-    socket.off("yjs:sync", onInitialSync);
+    socket.off("yjs:sync", onSync);
+    socket.off("connect", emitJoin);
   };
 }
