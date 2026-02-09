@@ -31,6 +31,13 @@ interface RoomShellProps {
 
 export default function RoomShell({ roomId }: RoomShellProps) {
   const room = useRoomStore((s) => s.room);
+  const roomError = useRoomStore((s) => s.error);
+  const isAwaitingRoleAssignment = useRoomStore(
+    (s) => s.isAwaitingRoleAssignment
+  );
+  const awaitingRoleMessage = useRoomStore(
+    (s) => s.awaitingRoleMessage
+  );
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [bottomOpen, setBottomOpen] = useState(true);
@@ -38,7 +45,27 @@ export default function RoomShell({ roomId }: RoomShellProps) {
   const [sidebarView, setSidebarView] =
     useState<SidebarView>("explorer");
 
-  // ✅ Defensive guard (RoomGuard should already ensure this)
+  if (roomError) {
+    return (
+      <div className="h-full flex items-center justify-center text-red-400">
+        {roomError}
+      </div>
+    );
+  }
+
+  if (isAwaitingRoleAssignment) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 text-neutral-300">
+        <Loader2 className="animate-spin text-neutral-400" />
+        <p className="text-sm">Waiting for role assignment</p>
+        <p className="text-xs text-neutral-500">
+          {awaitingRoleMessage ?? "The room owner needs to assign your access role before you can enter."}
+        </p>
+      </div>
+    );
+  }
+
+  // Defensive guard
   if (!room) {
     return (
       <div className="h-full flex items-center justify-center">

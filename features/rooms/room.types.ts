@@ -1,3 +1,5 @@
+import type { FSNode } from "@/features/collaboration/filesystem/fs.types";
+
 export interface Room {
   id: string;
   name: string;
@@ -9,7 +11,17 @@ export interface RoomMember {
   role: "owner" | "editor" | "viewer";
 }
 
+export interface RoomJoinRequest {
+  roomId: string;
+  userId: string;
+  name: string;
+  email?: string;
+  requestedAt: number;
+}
+
 export interface RoomSnapshot {
   roomId: string;
-  tree: any[]; // FSNode[] from filesystem feature
+  room: Room;
+  members: RoomMember[];
+  tree: FSNode[];
 }
