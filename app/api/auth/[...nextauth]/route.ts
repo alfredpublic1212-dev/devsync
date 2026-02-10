@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 
 const handler = NextAuth({
-  providers: [], // no providers → disables OAuth
+  providers: [], // disables google + github completely
   session: { strategy: "jwt" },
 });
 
