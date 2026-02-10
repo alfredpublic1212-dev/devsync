@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-const WISDOM_URL = process.env.WISDOM_URL!;
-const WISDOM_API_KEY = process.env.WISDOM_API_KEY!;
+const WISDOM_URL = "https://wisdom-ai-fn24.onrender.com/review";
+const WISDOM_KEY = "devsync_live_abc123";
 
 export async function POST(req: Request) {
   try {
@@ -14,12 +14,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 CALL WISDOM AI ENGINE
+    // CALL WISDOM AI ENGINE
     const wisdomRes = await fetch(WISDOM_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": WISDOM_API_KEY,
+        "x-api-key": WISDOM_KEY,
       },
       body: JSON.stringify({
         file,
@@ -32,18 +32,14 @@ export async function POST(req: Request) {
 
     const data = await wisdomRes.json();
 
-    // if WISDOM policy failed
     if (!wisdomRes.ok) {
       return NextResponse.json(
-        {
-          error: "WISDOM policy failed",
-          wisdom: data,
-        },
+        { error: "WISDOM policy failed", details: data },
         { status: wisdomRes.status }
       );
     }
 
-    // Map to DevSync format
+    // map to DevSync UI
     const results = (data.issues || []).map((i: any, index: number) => ({
       id: String(index),
       severity: i.severity || "info",
@@ -55,10 +51,9 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       engine: "WISDOM AI",
-      summary: data.summary,
-      policy: data.policy,
       results,
     });
+
   } catch (err) {
     console.error("WISDOM CONNECT ERROR:", err);
     return NextResponse.json(
