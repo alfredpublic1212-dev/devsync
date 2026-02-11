@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 
-const WISDOM_URL = "https://wisdom-ai-fn24.onrender.com/review";
+const WISDOM_BASE = "https://wisdom-ai-fn24.onrender.com";
+const WISDOM_REVIEW = `${WISDOM_BASE}/review`;
+const WISDOM_HEALTH = `${WISDOM_BASE}/health`;
 const WISDOM_KEY = "devsync_live_abc123";
+
+async function wakeWisdom() {
+  try {
+    await fetch(WISDOM_HEALTH, { method: "GET" });
+    // wait a bit if cold start
+    await new Promise(r => setTimeout(r, 1200));
+  } catch (e) {
+    console.log("Wake attempt done");
+  }
+}
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { scope, file, language, code, range } = body ?? {};
+    const { scope, file, language, code } = await req.json();
 
     if (!file || !code) {
       return NextResponse.json(
@@ -15,8 +26,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // CALL YOUR WISDOM ENGINE
-    const wisdomRes = await fetch(WISDOM_URL, {
+    //  AUTO WAKE SERVER
+    await wakeWisdom();
+
+    // CALL WISDOM
+    const wisdomRes = await fetch(WISDOM_REVIEW, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -35,12 +49,12 @@ export async function POST(req: Request) {
 
     if (!wisdomRes.ok) {
       return NextResponse.json(
-        { error: "Wisdom analysis failed", details: data },
+        { error: "WISDOM policy failed", details: data },
         { status: wisdomRes.status }
       );
     }
 
-    // MAP FOR DEVSYNC PANEL (IMPORTANT)
+    // map issues → DevSync panel
     const results = (data.issues || []).map((i: any, index: number) => ({
       id: String(index),
       severity: i.severity || "info",
@@ -54,14 +68,13 @@ export async function POST(req: Request) {
       engine: "WISDOM AI",
       summary: data.summary,
       policy: data.policy,
-      llm: data.llm_explanation?.content || null,
       results,
     });
 
   } catch (err) {
     console.error("WISDOM CONNECT ERROR:", err);
     return NextResponse.json(
-      { error: "Wisdom connection failed" },
+      { error: "WISDOM connection failed" },
       { status: 500 }
     );
   }
