@@ -12,7 +12,7 @@ interface ToolsPanelProps {
 }
 
 export default function ToolsPanel({ roomId }: ToolsPanelProps) {
-  const [tab, setTab] = useState<ToolTab>("preview");
+  const [tab, setTab] = useState<ToolTab>("ai");
 
   return (
     <div className="h-full flex flex-col bg-neutral-900 rounded-lg  border-neutral-800 text-sm">
