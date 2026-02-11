@@ -3,16 +3,25 @@ import { NextResponse } from 'next/server';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const MODELS = [
-  'nex-agi/deepseek-v3.1-nex-n1:free',
+  'deepseek/deepseek-r1-0528:free',
 ];
 
-async function callOpenRouter(model: string, prompt: string) {
+async function callOpenRouter(
+  model: string,
+  prompt: string,
+  apiKey?: string,
+  referer?: string
+) {
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY is missing');
+  }
+
   const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'http://localhost:3000',
+      'HTTP-Referer': referer || '',
       'X-Title': 'DevSync',
     },
     body: JSON.stringify({
@@ -38,14 +47,36 @@ async function callOpenRouter(model: string, prompt: string) {
 
 export async function POST(req: Request) {
   try {
-    const { scope, file, language, code, range } = await req.json();
-
-    if (!file || !code) {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'Missing file or code' },
+        { error: 'OPENROUTER_API_KEY is missing' },
+        { status: 503 }
+      );
+    }
+
+    const body = await req.json();
+    const { scope, file, language, code, range } = body ?? {};
+
+    if (!file || typeof file !== 'string') {
+      return NextResponse.json(
+        { error: 'Missing file' },
         { status: 400 }
       );
     }
+
+    if (!code || typeof code !== 'string' || !code.trim()) {
+      return NextResponse.json(
+        { error: 'Missing code' },
+        { status: 400 }
+      );
+    }
+
+    const requestOrigin = new URL(req.url).origin;
+    const referer =
+      process.env.OPENROUTER_REFERER ||
+      requestOrigin ||
+      process.env.NEXT_PUBLIC_APP_URL;
 
     const prompt = `
 You are an expert software code reviewer.
@@ -72,7 +103,7 @@ Return ONLY a valid JSON array like:
 
     for (const model of MODELS) {
       try {
-        const data = await callOpenRouter(model, prompt);
+        const data = await callOpenRouter(model, prompt, apiKey, referer);
         const raw = data.choices?.[0]?.message?.content;
 
         if (!raw) throw new Error('Empty response');
@@ -90,7 +121,6 @@ Return ONLY a valid JSON array like:
         console.warn(`Model failed: ${model}`);
       }
     }
-
     return NextResponse.json(
       { error: 'All AI models unavailable' },
       { status: 503 }
