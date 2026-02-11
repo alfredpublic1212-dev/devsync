@@ -18,6 +18,7 @@ import { eventBus } from "@/features/collaboration/client/event-bus";
 import { useEditorStore } from "@/features/collaboration/editor/editor.store";
 import { usePresenceStore } from "@/features/collaboration/presence/presence.store";
 import { findCurrentPresenceUser } from "@/features/rooms/identity";
+import { useEditorContext } from "@/state/editorContext";
 
 interface CodeEditorProps {
   roomId: string;
@@ -31,6 +32,7 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
   const { data: session } = useSession();
 
   const file = activeFileId ? openFiles[activeFileId] : null;
+  const { setSelection, clearSelection } = useEditorContext();
   const currentUser = useMemo(() => {
     const fromSession = findCurrentPresenceUser(users, session?.user);
     if (fromSession) return fromSession;
@@ -39,6 +41,8 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
 
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof monaco | null>(null);
+  const selectionListenerRef = useRef<monaco.IDisposable | null>(null);
+  const activeFileNameRef = useRef<string | null>(null);
 
   const modelsRef = useRef<
     Map<
@@ -59,6 +63,14 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
     snapshotState.roomId === roomId
       ? snapshotState.ready
       : false;
+
+  useEffect(() => {
+    activeFileNameRef.current = file?.name ?? null;
+  }, [file?.name]);
+
+  useEffect(() => {
+    clearSelection();
+  }, [file?.fileId, clearSelection]);
 
   useEffect(() => {
     const offSnapshot = eventBus.on(
@@ -84,6 +96,35 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
   const handleEditorMount: OnMount = (editor, monacoInstance) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
+
+    selectionListenerRef.current?.dispose();
+    selectionListenerRef.current = editor.onDidChangeCursorSelection((event) => {
+      const model = editor.getModel();
+      const fileName = activeFileNameRef.current;
+      if (!model || !fileName) {
+        clearSelection();
+        return;
+      }
+
+      const selection = event.selection;
+      if (selection.isEmpty()) {
+        clearSelection();
+        return;
+      }
+
+      const selectedText = model.getValueInRange(selection);
+      if (!selectedText.trim()) {
+        clearSelection();
+        return;
+      }
+
+      setSelection(
+        fileName,
+        selectedText,
+        selection.startLineNumber,
+        selection.endLineNumber
+      );
+    });
   };
 
   /* ---------- Global cleanup ---------- */
@@ -96,10 +137,13 @@ export default function CodeEditor({ roomId }: CodeEditorProps) {
         } catch {}
       });
       modelsRef.current.clear();
+      selectionListenerRef.current?.dispose();
+      selectionListenerRef.current = null;
+      clearSelection();
       editorRef.current = null;
       monacoRef.current = null;
     };
-  }, []);
+  }, [clearSelection]);
 
   /* ---------- Collaboration setup (ALWAYS CALLED) ---------- */
   useEffect(() => {
