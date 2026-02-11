@@ -5,7 +5,8 @@ const WISDOM_KEY = "devsync_live_abc123";
 
 export async function POST(req: Request) {
   try {
-    const { scope, file, language, code, range } = await req.json();
+    const body = await req.json();
+    const { scope, file, language, code, range } = body ?? {};
 
     if (!file || !code) {
       return NextResponse.json(
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // CALL WISDOM AI ENGINE
+    // CALL YOUR WISDOM ENGINE
     const wisdomRes = await fetch(WISDOM_URL, {
       method: "POST",
       headers: {
@@ -34,12 +35,12 @@ export async function POST(req: Request) {
 
     if (!wisdomRes.ok) {
       return NextResponse.json(
-        { error: "WISDOM policy failed", details: data },
+        { error: "Wisdom analysis failed", details: data },
         { status: wisdomRes.status }
       );
     }
 
-    // map to DevSync UI
+    // MAP FOR DEVSYNC PANEL (IMPORTANT)
     const results = (data.issues || []).map((i: any, index: number) => ({
       id: String(index),
       severity: i.severity || "info",
@@ -51,13 +52,16 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       engine: "WISDOM AI",
+      summary: data.summary,
+      policy: data.policy,
+      llm: data.llm_explanation?.content || null,
       results,
     });
 
   } catch (err) {
     console.error("WISDOM CONNECT ERROR:", err);
     return NextResponse.json(
-      { error: "WISDOM connection failed" },
+      { error: "Wisdom connection failed" },
       { status: 500 }
     );
   }
