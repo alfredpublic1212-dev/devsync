@@ -1,7 +1,3 @@
-/* ===============================
-   FILE: RoomShell.tsx
-=============================== */
-
 "use client";
 
 import { useState } from "react";
@@ -59,13 +55,13 @@ export default function RoomShell({ roomId }: RoomShellProps) {
         <Loader2 className="animate-spin text-neutral-400" />
         <p className="text-sm">Waiting for role assignment</p>
         <p className="text-xs text-neutral-500">
-          {awaitingRoleMessage ?? "The room owner needs to assign your access role before you can enter."}
+          {awaitingRoleMessage ??
+            "The room owner needs to assign your access role before you can enter."}
         </p>
       </div>
     );
   }
 
-  // Defensive guard
   if (!room) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -75,7 +71,7 @@ export default function RoomShell({ roomId }: RoomShellProps) {
   }
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200">
+    <div className="h-full w-full flex flex-col bg-[#1e1e1e] text-neutral-200 overflow-hidden">
       <Header
         title={room.name}
         roomId={roomId}
@@ -84,13 +80,18 @@ export default function RoomShell({ roomId }: RoomShellProps) {
         onToggleTools={() => setToolsOpen((v) => !v)}
       />
 
-      <div className="flex flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
+      {/* MAIN AREA */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="flex-1 min-h-0 overflow-hidden"
+        >
           <ActivityBar
             active={sidebarView}
             onSelect={setSidebarView}
           />
 
+          {/* SIDEBAR */}
           {sidebarOpen && (
             <>
               <ResizablePanel defaultSize={18} maxSize={25}>
@@ -104,29 +105,48 @@ export default function RoomShell({ roomId }: RoomShellProps) {
             </>
           )}
 
+          {/* CENTER COLUMN */}
           <ResizablePanel minSize={40}>
-            <ResizablePanelGroup direction="vertical" className="h-full">
-              <ResizablePanel minSize={40}>
-                <EditorTabs />
-                <CodeEditor roomId={roomId} />
+            <ResizablePanelGroup
+              direction="vertical"
+              className="h-full min-h-0 overflow-hidden"
+            >
+              {/* EDITOR */}
+              <ResizablePanel minSize={40} defaultSize={75}>
+                <div className="flex flex-col h-full min-h-0 overflow-hidden">
+                  <EditorTabs />
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CodeEditor roomId={roomId} />
+                  </div>
+                </div>
               </ResizablePanel>
 
+              {/* TERMINAL */}
               {bottomOpen && (
                 <>
                   <ResizableHandle />
-                  <ResizablePanel defaultSize={25}>
-                    <BottomPanel roomId={roomId} />
+                  <ResizablePanel defaultSize={25} minSize={15}>
+                    <div className="h-full min-h-0 overflow-hidden">
+                      <BottomPanel roomId={roomId} />
+                    </div>
                   </ResizablePanel>
                 </>
               )}
             </ResizablePanelGroup>
           </ResizablePanel>
 
+          {/* TOOLS PANEL */}
           {toolsOpen && (
             <>
               <ResizableHandle />
-              <ResizablePanel defaultSize={22}>
-                <ToolsPanel roomId={roomId} />
+              <ResizablePanel
+                  defaultSize={22}
+                  minSize={18}
+                  className="min-h-0 overflow-visible"
+                >
+                <div className="h-full min-h-0 overflow-hidden">
+                  <ToolsPanel roomId={roomId} />
+                </div>
               </ResizablePanel>
             </>
           )}

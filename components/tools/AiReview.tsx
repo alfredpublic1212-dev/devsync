@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertTriangle, Bug, ShieldCheck, Info, ArrowBigRight, ArrowRight } from "lucide-react";
+import {
+  AlertTriangle,
+  Bug,
+  ShieldCheck,
+  Info,
+  ArrowRight,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +63,6 @@ export default function AIReviewPanel() {
       const data = await res.json();
 
       if (data.success && Array.isArray(data.results)) {
-        // normalize AI output
         setResults(
           data.results.map((r: any, index: number) => ({
             id: `${index}`,
@@ -78,54 +83,43 @@ export default function AIReviewPanel() {
   const canReview = Boolean(fileName);
 
   return (
-    <div className="flex flex-col">
-
-        {/* Selection Context */}
-        {code && range && fileName && (
-          <div className="flex flex-col">
-  
-          <div className="px-3 py-2 text-xs bg-neutral-900 text-neutral-400">
-            Reviewing selection in{" "}
-            <span className="text-neutral-200">{fileName}</span>
-            <br />
-            Lines {range.startLine}–{range.endLine}
-          </div>
-          <div className="m-2">
-  
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleRunReview}
-              disabled={!canReview || loading}
-            >
-              {loading ? "Reviewing…" : code ? "Review Selection" : "Review File"}
-          <ArrowRight/>
-            </Button>
-          </div>
-            </div>
-        )}
-      {/* Filters */}
-      {code && range && fileName && (
-      <div className="px-2 py-2 flex gap-1 border-b border-t  border-neutral-800">
-        {(["all", "error", "warning", "info"] as const).map((f) => (
-          <button
-          key={f}
-          onClick={() => setFilter(f)}
-          className={`px-2 py-1 text-xs rounded
-            ${
-              filter === f
-              ? "bg-neutral-700 text-white"
-              : "text-neutral-400 hover:bg-neutral-800"
-            }`}
-            >
-            {f.toUpperCase()}
-          </button>
-          
-        ))}
-      </div>
+    <div className="flex flex-col h-full">
+      {/* Run button */}
+      {fileName && (
+        <div className="p-2 border-b border-neutral-800">
+          <Button
+            size="sm"
+            onClick={handleRunReview}
+            disabled={!canReview || loading}
+            className="w-full"
+          >
+            {loading ? "Reviewing…" : "Run Wisdom Review"}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       )}
-      
-      {/* Review List */}
+
+      {/* Filters */}
+      {results.length > 0 && (
+        <div className="px-2 py-2 flex gap-1 border-b border-neutral-800">
+          {(["all", "error", "warning", "info"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-2 py-1 text-xs rounded
+              ${
+                filter === f
+                  ? "bg-neutral-700 text-white"
+                  : "text-neutral-400 hover:bg-neutral-800"
+              }`}
+            >
+              {f.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Results */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
           {!fileName && (
@@ -134,37 +128,30 @@ export default function AIReviewPanel() {
             </div>
           )}
 
-          {fileName &&
-            filtered.map((item) => (
-              <div
-                key={item.id}
-                className="group rounded-md bg-neutral-900/50 p-3 border border-neutral-800 hover:border-neutral-700 transition"
-              >
-                <div className="flex gap-2">
-                  {iconByCategory[item.category]}
+          {filtered.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-md bg-neutral-900/60 p-3 border border-neutral-800"
+            >
+              <div className="flex gap-2">
+                {iconByCategory[item.category]}
+                <div className="flex-1">
+                  <p className="text-sm text-neutral-200">{item.message}</p>
 
-                  <div className="flex-1">
-                    <p className="text-sm text-neutral-200">{item.message}</p>
-
-                    <div className="mt-1 flex items-center gap-2 text-xs text-neutral-400">
-                      <Badge variant="outline" className=" text-[10px]">
-                        {item.confidence} confidence
-                      </Badge>
-                    </div>
+                  <div className="mt-1 flex gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      {item.severity}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {item.confidence}
+                    </Badge>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="mt-2 hidden group-hover:flex gap-2">
-                  <Button size="sm" variant="outline">
-                    Explain
-                  </Button>
-                  <Button size="sm">Apply Fix</Button>
-                </div>
               </div>
-            ))}
+            </div>
+          ))}
 
-          {fileName && !loading && filtered.length === 0 && (
+          {!loading && results.length === 0 && fileName && (
             <div className="text-sm text-neutral-500 text-center py-6">
               No issues found.
             </div>

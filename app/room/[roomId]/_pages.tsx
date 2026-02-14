@@ -50,7 +50,7 @@
 //         {/* MAIN HORIZONTAL LAYOUT */}
 //         <ResizablePanelGroup
 //           direction="horizontal"
-//           className="flex-1 max-w-md rounded-lg border md:min-w-screen"
+//           className="flex-1 min-h-0 overflow-hidden"
 //           autoSaveId={`room-${roomId}-horizontal`}
 //         >
 //         <ActivityBar active="explorer" onSelect={() => {}} />
@@ -71,7 +71,7 @@
 //           <ResizablePanel minSize={30}>
 //             <ResizablePanelGroup
 //               direction="vertical"
-//               className="h-full"
+//               className="h-full min-h-0"
 //               autoSaveId={`room-${roomId}-vertical`}
 //             >
 //               {/* Editor */}
@@ -95,7 +95,7 @@
 //                 <>
 //                   <ResizableHandle />
 //                   <ResizablePanel
-//                     defaultSize={25}
+//                     defaultSize={22}
 //                     maxSize={50}
 //                   >
 //                     <BottomPanel logs={[]} />
